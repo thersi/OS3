@@ -1,15 +1,3 @@
-/* void parseText(char *str, char const *argv[])
-{
-    char cmdName = str.split(0);
-}
-void execute(char **parsedArgs, char cwd[]))
-{
-}
-int main(int argc, char const *argv[])
-{
-    parseText() return 0;
-} */
-// C Program to design a shell in Linux
 #include <stdio.h>
 #include <string.h>
 #include <stdlib.h>
@@ -19,166 +7,94 @@ int main(int argc, char const *argv[])
 #include <readline/readline.h>
 #include <readline/history.h>
 
-#define MAXCOM 1000 // max number of letters to be supported
-#define MAXLIST 100 // max number of commands to be supported
+#define MAX_LETTERS 1000
+#define MAX_LIST_SIZE 100
 
-// Clearing the shell using escape sequences
-#define clear() printf("\033[H\033[J")
-
-// Greeting shell during startup
-void init_shell()
+void init()
 {
-    clear();
-    printf("\n\n\n\n******************"
-           "************************");
-    printf("\n\n\n\t****MY SHELL****");
-    printf("\n\n\t-USE AT YOUR OWN RISK-");
-    printf("\n\n\n\n*******************"
-           "***********************");
-    char *username = getenv("USER");
-    printf("\n\n\nUSER is: @%s", username);
-    printf("\n");
-    sleep(1);
-    clear();
+    printf("\033[H\033[J"); // Clears shell via escape sequences PRØV FINNE ALTERNATIV?
+    char *user = getenv("ACTIVE_USER");
+    printf("\n The ACTIVE_USER is: @%s \n", user);
+    sleep(2);
+    printf("\033[H\033[J");
 }
 
-// Function to take input
-int takeInput(char *str)
+int parseString(char *string)
 {
-    char *buf;
-
-    buf = readline("\n>>> ");
-    if (strlen(buf) != 0)
+    int error_signal;
+    int status;
+    char *buffer;
+    buffer = readline(":");
+    if (WIFEXITED(status))
     {
-        add_history(buf);
-        strcpy(str, buf);
-        return 0;
+        int es = WEXITSTATUS(status);
+        printf("Exit status was %d\n", es);
     }
-    else
-    {
-        return 1;
-    }
+    printf("Exit status [%s] = %d\n", string, error_signal);
+    return 1;
 }
 
-// Function to print Current Directory.
-void printDir()
+void getDirectory()
 {
     char cwd[1024];
     getcwd(cwd, sizeof(cwd));
     printf("\nDir: %s", cwd);
 }
 
-// Function where the system command is executed
-void execArgs(char **parsed)
+void executeFork(char **parse) // Kall denne noe annet?
 {
-    // Forking a child
     pid_t pid = fork();
 
     if (pid == -1)
     {
-        printf("\nFailed forking child..");
+        printf("\nFailed fork");
         return;
     }
     else if (pid == 0)
     {
-        if (execvp(parsed[0], parsed) < 0)
+        if (execvp(parse[0], parse) < 0)
         {
-            printf("\nCould not execute command..");
+            printf("\nUnable to execute");
         }
         exit(0);
     }
     else
     {
-        // waiting for child to terminate
         wait(NULL);
         return;
     }
 }
-
-// Function where the piped system commands is executed
-void execArgsPiped(char **parsed, char **parsedpipe)
+int parse(char *str, char **pipes)
 {
-    // 0 is read end, 1 is write end
-    int pipefd[2];
-    pid_t p1, p2;
-
-    if (pipe(pipefd) < 0)
+    int i;
+    for (i = 0; i < 2; i++)
     {
-        printf("\nPipe could not be initialized");
-        return;
-    }
-    p1 = fork();
-    if (p1 < 0)
-    {
-        printf("\nCould not fork");
-        return;
+        pipes[i] = strsep(&str, ":");
+        if (pipes[i] == NULL)
+            break;
     }
 
-    if (p1 == 0)
-    {
-        // Child 1 executing..
-        // It only needs to write at the write end
-        close(pipefd[0]);
-        dup2(pipefd[1], STDOUT_FILENO);
-        close(pipefd[1]);
-
-        if (execvp(parsed[0], parsed) < 0)
-        {
-            printf("\nCould not execute command 1..");
-            exit(0);
-        }
-    }
+    if (pipes[1] == NULL)
+        return 0;
     else
     {
-        // Parent executing
-        p2 = fork();
-
-        if (p2 < 0)
-        {
-            printf("\nCould not fork");
-            return;
-        }
-
-        // Child 2 executing..
-        // It only needs to read at the read end
-        if (p2 == 0)
-        {
-            close(pipefd[1]);
-            dup2(pipefd[0], STDIN_FILENO);
-            close(pipefd[0]);
-            if (execvp(parsedpipe[0], parsedpipe) < 0)
-            {
-                printf("\nCould not execute command 2..");
-                exit(0);
-            }
-        }
-        else
-        {
-            // parent executing, waiting for two children
-            wait(NULL);
-            wait(NULL);
-        }
+        return 1;
     }
 }
-
-// Help command builtin
-void openHelp()
+void parseSpace(char *str, char **parsed) // KOmbiner i den metoden over
 {
-    puts("\n***WELCOME TO MY SHELL HELP***"
-         "\nCopyright @ Suprotik Dey"
-         "\n-Use the shell at your own risk..."
-         "\nList of Commands supported:"
-         "\n>cd"
-         "\n>ls"
-         "\n>exit"
-         "\n>all other general commands available in UNIX shell"
-         "\n>pipe handling"
-         "\n>improper space handling");
+    int i;
 
-    return;
+    for (i = 0; i < MAX_LIST_SIZE; i++)
+    {
+        parsed[i] = strsep(&str, " ");
+
+        if (parsed[i] == NULL)
+            break;
+        if (strlen(parsed[i]) == 0)
+            i--;
+    }
 }
-
-// Function to execute builtin commands
 int ownCmdHandler(char **parsed)
 {
     int NoOfOwnCmds = 4, i, switchOwnArg = 0;
@@ -208,7 +124,7 @@ int ownCmdHandler(char **parsed)
         chdir(parsed[1]);
         return 1;
     case 3:
-        openHelp();
+        // openHelp();
         return 1;
     case 4:
         username = getenv("USER");
@@ -223,95 +139,101 @@ int ownCmdHandler(char **parsed)
 
     return 0;
 }
-
-// function for finding pipe
-int parsePipe(char *str, char **strpiped)
-{
-    int i;
-    for (i = 0; i < 2; i++)
-    {
-        strpiped[i] = strsep(&str, "|");
-        if (strpiped[i] == NULL)
-            break;
-    }
-
-    if (strpiped[1] == NULL)
-        return 0; // returns zero if no pipe is found.
-    else
-    {
-        return 1;
-    }
-}
-
-// function for parsing command words
-void parseSpace(char *str, char **parsed)
-{
-    int i;
-
-    for (i = 0; i < MAXLIST; i++)
-    {
-        parsed[i] = strsep(&str, " ");
-
-        if (parsed[i] == NULL)
-            break;
-        if (strlen(parsed[i]) == 0)
-            i--;
-    }
-}
-
-int processString(char *str, char **parsed, char **parsedpipe)
+int stringPipe(char *str, char **parsedArg, char **pipes)
 {
 
     char *strpiped[2];
     int piped = 0;
 
-    piped = parsePipe(str, strpiped);
+    piped = parse(str, strpiped);
 
     if (piped)
     {
-        parseSpace(strpiped[0], parsed);
-        parseSpace(strpiped[1], parsedpipe);
+        parseSpace(strpiped[0], parsedArg);
+        parseSpace(strpiped[1], pipes);
     }
     else
     {
 
-        parseSpace(str, parsed);
+        parseSpace(str, parsedArg);
     }
 
-    if (ownCmdHandler(parsed))
+    if (ownCmdHandler(parsedArg))
         return 0;
     else
         return 1 + piped;
 }
+void executePipes(char **parse, char **pipeParse)
+{
+    pid_t pipe0, pipe1;
+    int pipes[2];
+    if (pipe(pipes) < 0)
+    {
+        printf("\n An error occured in the initialization stage");
+        return;
+    }
+    pipe0 = fork();
+    if (pipe0 < 0)
+    {
+        printf("Unable to fork");
+        return;
+    }
+    if (pipe0 == 0)
+    {
+        close(pipes[0]);
+        dup2(pipes[1], STDOUT_FILENO);
+        close(pipes[1]);
+
+        if (execvp(parse[0], pipeParse) < 0)
+        {
+            printf("\nUnable to execute the first command");
+            exit(0);
+        }
+    }
+    pipe1 = fork();
+
+    if (pipe1 < 0)
+    {
+        printf("\nCould not fork");
+        return;
+    }
+    if (pipe1 == 0)
+    {
+        close(pipes[1]);
+        dup2(pipes[0], STDIN_FILENO);
+        close(pipes[0]);
+        if (execvp(pipeParse[0], pipeParse) < 0)
+        {
+            printf("\nUnable to execute the second command");
+            exit(0);
+        }
+    }
+    else
+    {
+        wait(NULL);
+        wait(NULL);
+    }
+}
 
 int main()
 {
-    char inputString[MAXCOM], *parsedArgs[MAXLIST];
-    char *parsedArgsPiped[MAXLIST];
-    int execFlag = 0;
-    init_shell();
+    char input[MAX_LETTERS], *parsedArgs[MAX_LIST_SIZE];
+    char *parsedPipes[MAX_LIST_SIZE];
+    int flag = 0;
+    init();
 
     while (1)
     {
-        // print shell line
-        printDir();
-        // take input
-        if (takeInput(inputString))
+        getDirectory();
+        if (parseString(input))
             continue;
-        // process
-        execFlag = processString(inputString,
-                                 parsedArgs, parsedArgsPiped);
-        // execflag returns zero if there is no command
-        // or it is a builtin command,
-        // 1 if it is a simple command
-        // 2 if it is including a pipe.
+        flag = stringPipe(input,
+                          parsedArgs, parsedPipes);
+        if (flag == 1)
+            executeFork(parsedArgs);
 
-        // execute
-        if (execFlag == 1)
-            execArgs(parsedArgs);
-
-        if (execFlag == 2)
-            execArgsPiped(parsedArgs, parsedArgsPiped);
+        if (flag == 2)
+            executePipes(parsedArgs, parsedPipes);
     }
     return 0;
 }
