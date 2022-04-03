@@ -76,6 +76,31 @@ int processString(char *str, char **parsed)
     else
         return 1 + piped;*/
 }
+void execArgs(char **parsed)
+{
+    // Forking a child
+    pid_t pid = fork();
+
+    if (pid == -1)
+    {
+        printf("\nFailed forking child..");
+        return;
+    }
+    else if (pid == 0)
+    {
+        if (execvp(parsed[0], parsed) < 0)
+        {
+            printf("\nCould not execute command..");
+        }
+        exit(0);
+    }
+    else
+    {
+        // waiting for child to terminate
+        wait(NULL);
+        return;
+    }
+}
 
 int main()
 {
@@ -100,14 +125,15 @@ int main()
         // 2 if it is including a pipe.
 
         // execute
+        execArgs(parsedArgs);
         /*if (execFlag == 1)
             execArgs(parsedArgs);
 
         if (execFlag == 2)
             execArgsPiped(parsedArgs, parsedArgsPiped);*/
-        printf("%s\n",parsedArgs[0]);
+        /*printf("%s\n",parsedArgs[0]);
         printf("%s\n",parsedArgs[1]);
-        printf("%s\n",parsedArgs[2]);
+        printf("%s\n",parsedArgs[2]);*/
 
         printf("made it here :) \n");
     }
