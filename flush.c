@@ -31,22 +31,13 @@ int activeDirectory()
         perror("Error when calling getcwd()");
         return 0;
     } // Gets the path name of the working directory
-    printf("\n %s", pathBuffer);
+    printf(" %s", pathBuffer);
     return 1;
-}
-
-void stripString(char *inputStr, char **inputBuffer)
-{
-
-    for (int i = 0; i < sizeof(MAX_SIZE); i++)
-    {
-        inputBuffer[i] = strsep(&inputStr, "\n");
-        inputBuffer[i] = strsep(&inputStr, "\t");
-    }
 }
 
 int parseString(char *inputString, char **inputBuffer)
 {
+
     int i;
 
     for (i = 0; i < MAXLIST; i++)
@@ -58,15 +49,19 @@ int parseString(char *inputString, char **inputBuffer)
         if (strlen(inputBuffer[i]) == 0)
             i--;
     }
-
-    printf("yo\n");
+    if (strcmp(inputBuffer[0], "cd") == 0)
+    {
+        chdir(inputBuffer[1]); // Sjekk om child skal gjøre dette.
+    }
     return 1;
 }
 
 int executeProcess(char **inputBuffer)
 {
     // Forking a child
+    int status;
     pid_t pid = fork();
+    char finalString[512] = "";
     if (pid == -1)
     {
         printf("\n Unable to fork");
@@ -74,6 +69,10 @@ int executeProcess(char **inputBuffer)
     }
     else if (pid == 0)
     {
+        if (strcmp(inputBuffer[0], "cd") == 0)
+        {
+            return 0;
+        }
         if (execvp(inputBuffer[0], inputBuffer) < 0)
         {
             printf("\nUnable to execute :");
@@ -82,7 +81,27 @@ int executeProcess(char **inputBuffer)
     }
     else
     {
-        wait(NULL);
+        // Dette funker ikke for cd, se nærmere på det
+        wait(&status);
+        if (WIFEXITED(status))
+        {
+            int exitStatus = WEXITSTATUS(status);
+            for (int i = 0; i < MAXLIST; i++)
+            {
+                if (!inputBuffer[i])
+                {
+                    break;
+                }
+                strcat(finalString, inputBuffer[i]);
+                strcat(finalString, " ");
+            }
+            printf("\n %s", finalString);
+            printf("\n Exit status [%s] = %d \n", finalString, exitStatus);
+        }
+        else if (WIFSIGNALED(status))
+            psignal(WTERMSIG(status), "Exit signal");
+
+        // wait(status); // Equivalent to waitPid(-1, &status, 0)
         return 1;
     }
 }
@@ -105,22 +124,6 @@ int main()
         flag = parseString(inputString,
                            inputBuffer);
         executeProcess(inputBuffer);
-        // execflag returns zero if there is no command
-        // or it is a builtin command,
-        // 1 if it is a simple command
-        // 2 if it is including a pipe.
-
-        // execute
-        /*if (execFlag == 1)
-            execArgs(parsedArgs);
-
-        if (execFlag == 2)
-            execArgsPiped(parsedArgs, parsedArgsPiped);*/
-        printf("%s\n", inputBuffer[0]);
-        printf("%s\n", inputBuffer[1]);
-        printf("%s\n", inputBuffer[2]);
-
-        printf("made it here :) \n");
     }
     return 0;
 }
