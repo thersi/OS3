@@ -5,10 +5,12 @@
 #include <sys/types.h>
 #include <sys/wait.h>
 #include <readline/readline.h>
+#include <assert.h>
 #define MAX_SIZE 300
 
 #define MAXCOM 1000 // max number of letters to be supported
 #define MAXLIST 100
+
 
 int checkInput(char *inputString) // Kan gjøre dette på en annen måte?
 {
@@ -40,9 +42,17 @@ int parseString(char *inputString, char **inputBuffer)
 
     int i;
 
+    /*
+    Lage en count som teller hvor mange argumenter som skrives inn. 
+    Så sjekke bra bakerst av om det er noen redirections, og nøste de opp en etter en.
+    Burde vi ha en funksjon til hver kommando??
+    */
+
     for (i = 0; i < MAXLIST; i++)
     {
-        inputBuffer[i] = strsep(&inputString, " ");
+        char sep[2] = {' ', '\t'};
+
+        inputBuffer[i] = strsep(&inputString, sep);
 
         if (inputBuffer[i] == NULL)
             break;
@@ -105,9 +115,42 @@ int executeProcess(char **inputBuffer)
         return 1;
     }
 }
+void readToConsole(char *filename) 
+{
+    FILE *file = fopen(filename, "r");
+    char currentline[1000];
+
+    assert(file != NULL);
+
+    while (fgets(currentline, sizeof(currentline), file) != NULL) {
+        fprintf(stderr, "got line: %s\n", currentline);
+    }
+
+    fclose(file);
+}
+
+void readFromFileToFile(char *readfile, char *writefile) 
+{
+    FILE *file = fopen(readfile, "r");
+    char currentline[1000];
+
+    assert(file != NULL);
+    
+    FILE* write = fopen(writefile, "w");
+    rewind(write);
+
+    while (fgets(currentline, sizeof(currentline), file) != NULL) {
+        fprintf(write, "%s\n", ( char * )&currentline);
+    }
+
+    fclose(file);
+    fclose(write);
+}
 
 int main()
 {
+    readFromFileToFile("textfile.txt", "writefile.txt");
+
     char inputString[MAXCOM], *inputBuffer[MAXLIST];
     char *parsedArgsPiped[MAXLIST];
     int flag = 0;
