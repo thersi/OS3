@@ -59,11 +59,30 @@ int parseString(char *inputString, char **inputBuffer)
         if (strlen(inputBuffer[i]) == 0)
             i--;
     }
+
+
     if (strcmp(inputBuffer[0], "cd") == 0)
     {
         chdir(inputBuffer[1]); // Sjekk om child skal gjøre dette.
     }
     return 1;
+}
+
+void redirection(char **parsedString)
+{
+    int size = sizeof(parsedString);
+
+    for (int i = 0; i < size; i++)
+    {
+        if (strcmp(parsedString[i], "<"))
+        {
+            printf("Read from file");
+        }
+        if (strcmp(parsedString[i], ">"))
+        {
+            printf("Write to file");
+        }
+    }
 }
 
 int executeProcess(char **inputBuffer)
@@ -166,6 +185,7 @@ int main()
         // process
         flag = parseString(inputString,
                            inputBuffer);
+        //redirection(inputBuffer);
         executeProcess(inputBuffer);
     }
     return 0;
