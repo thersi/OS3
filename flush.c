@@ -14,146 +14,6 @@
 int readIndex;
 int writeIndex;
 
-
-int checkInput(char *inputString) // Kan gjøre dette på en annen måte?
-{
-    char *stringBuffer;
-
-    stringBuffer = readline(": ");
-    if (strlen(stringBuffer) > 0)
-    {
-        strcpy(inputString, stringBuffer);
-        return 0;
-    }
-    return 1;
-}
-
-int activeDirectory()
-{
-    char pathBuffer[1024];
-    if (getcwd(pathBuffer, sizeof(pathBuffer)) == NULL)
-    {
-        perror("Error when calling getcwd()");
-        return 0;
-    } // Gets the path name of the working directory
-    printf(" %s", pathBuffer);
-    return 1;
-}
-
-int parseString(char *inputString, char **inputBuffer)
-{
-
-    int i;
-
-    /*
-    Lage en count som teller hvor mange argumenter som skrives inn. 
-    Så sjekke bra bakerst av om det er noen redirections, og nøste de opp en etter en.
-    Burde vi ha en funksjon til hver kommando??
-    */
-
-    for (i = 0; i < MAXLIST; i++)
-    {
-        char sep[2] = {' ', '\t'};
-
-        inputBuffer[i] = strsep(&inputString, sep);
-
-        if (inputBuffer[i] == NULL)
-            break;
-        if (strlen(inputBuffer[i]) == 0)
-            i--;
-        
-        // sjekker etter redirections
-        if (!strcmp(inputBuffer[i], "<"))
-        {
-            readIndex = i - 1;
-            printf("Read from file");
-        }
-        if (!strcmp(inputBuffer[i], ">"))
-        {
-            writeIndex = i + 1;
-            printf("Write to file");
-        }
-    }
-
-
-    if (strcmp(inputBuffer[0], "cd") == 0)
-    {
-        chdir(inputBuffer[1]); // Sjekk om child skal gjøre dette.
-    }
-    return 1;
-}
-
-void redirection(char **parsedString)
-{
-    int size = sizeof(parsedString);
-
-    for (int i = 0; i < 3; i++)
-    {
-        if (parsedString[i] = NULL)
-        {
-            break;
-        }
-        
-        if (!strcmp(parsedString[i], "<"))
-        {
-            printf("Read from file");
-        }
-        if (!strcmp(parsedString[i], ">"))
-        {
-            printf("Write to file");
-        }
-    }
-}
-
-int executeProcess(char **inputBuffer)
-{
-    // Forking a child
-    int status;
-    pid_t pid = fork();
-    char finalString[512] = "";
-    if (pid == -1)
-    {
-        printf("\n Unable to fork");
-        return 0;
-    }
-    else if (pid == 0)
-    {
-        if (strcmp(inputBuffer[0], "cd") == 0)
-        {
-            return 0;
-        }
-        if (execvp(inputBuffer[0], inputBuffer) < 0)
-        {
-            printf("\nUnable to execute :");
-        }
-        exit(0);
-    }
-    else
-    {
-        // Dette funker ikke for cd, se nærmere på det
-        wait(&status);
-        if (WIFEXITED(status))
-        {
-            int exitStatus = WEXITSTATUS(status);
-            for (int i = 0; i < MAXLIST; i++)
-            {
-                if (!inputBuffer[i])
-                {
-                    break;
-                }
-                strcat(finalString, inputBuffer[i]);
-                strcat(finalString, " ");
-            }
-            printf("\n %s", finalString);
-            printf("\n Exit status [%s] = %d \n", finalString, exitStatus);
-        }
-        else if (WIFSIGNALED(status))
-            psignal(WTERMSIG(status), "Exit signal");
-
-        // wait(status); // Equivalent to waitPid(-1, &status, 0)
-        return 1;
-    }
-}
 char * readToBuffer(const char *filename) 
 {
     FILE *file = fopen(filename, "r");
@@ -201,16 +61,133 @@ void * writeToFile(char **readfrom, char *writefile)
     
     FILE* write = fopen(writefile, "w");
     rewind(write);
-
-    /*int i = 0;
-    while (readfrom[i] != NULL)
-    {
-        fprintf(write, "%s\n", readfrom[i]);
-        i++;
-    }*/
     fprintf(write, "%s\n", ( char * )readfrom);
     fclose(write);
 }
+
+
+int checkInput(char *inputString) // Kan gjøre dette på en annen måte?
+{
+    char *stringBuffer;
+
+    stringBuffer = readline(": ");
+    if (strlen(stringBuffer) > 0)
+    {
+        strcpy(inputString, stringBuffer);
+        return 0;
+    }
+    return 1;
+}
+
+int activeDirectory()
+{
+    char pathBuffer[1024];
+    if (getcwd(pathBuffer, sizeof(pathBuffer)) == NULL)
+    {
+        perror("Error when calling getcwd()");
+        return 0;
+    } // Gets the path name of the working directory
+    printf(" %s", pathBuffer);
+    return 1;
+}
+
+int parseString(char *inputString, char **inputBuffer)
+{
+
+    int i;
+
+    for (i = 0; i < MAXLIST; i++)
+    {
+        char sep[2] = {' ', '\t'};
+
+        inputBuffer[i] = strsep(&inputString, sep);
+
+        if (inputBuffer[i] == NULL)
+            break;
+        if (strlen(inputBuffer[i]) == 0)
+            i--;
+        
+        // sjekker etter redirections
+        if (!strcmp(inputBuffer[i], "<"))
+        {
+            // something to read from file
+            readIndex = i - 1;
+        }
+        else { readIndex = -1; }
+        if (!strcmp(inputBuffer[i], ">"))
+        {
+            // something to write to file
+            writeIndex = i + 1;
+        }
+        else { writeIndex = -1; }
+    }
+
+
+    if (strcmp(inputBuffer[0], "cd") == 0)
+    {
+        chdir(inputBuffer[1]); // Sjekk om child skal gjøre dette.
+    }
+    return 1;
+}
+
+int executeProcess(char **inputBuffer)
+{
+    // Forking a child
+    int status;
+    pid_t pid = fork();
+    char finalString[512] = "";
+    if (pid == -1)
+    {
+        printf("\n Unable to fork");
+        return 0;
+    }
+    else if (pid == 0)
+    {
+        if (strcmp(inputBuffer[0], "cd") == 0)
+        {
+            return 0;
+        }
+        if (execvp(inputBuffer[0], inputBuffer) < 0)
+        {
+            printf("\nUnable to execute :");
+        }
+        exit(0);
+    }
+    else
+    {
+        // Dette funker ikke for cd, se nærmere på det
+        wait(&status);
+        if (WIFEXITED(status))
+        {
+            int exitStatus = WEXITSTATUS(status);
+            for (int i = 0; i < MAXLIST; i++)
+            {
+                if (!inputBuffer[i])
+                {
+                    break;
+                }
+                strcat(finalString, inputBuffer[i]);
+                strcat(finalString, " ");
+            }
+            // finalString er standard output
+            // disse er ikke heeelt ferdige enda 
+            if (readIndex) {
+                finalString = readToBuffer(inputBuffer[readIndex]);
+            }
+            if (writeIndex){
+                writeToFile(( char ** )finalString, inputBuffer[writeIndex]);
+            }
+            else { printf("\n %s", finalString); }
+            printf("\n Exit status [%s] = %d \n", finalString, exitStatus);
+        }
+        else if (WIFSIGNALED(status))
+            psignal(WTERMSIG(status), "Exit signal");
+
+        // wait(status); // Equivalent to waitPid(-1, &status, 0)
+        return 1;
+    }
+}
+
 
 int main()
 {
