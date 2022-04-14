@@ -112,12 +112,16 @@ int parseString(char *inputString, char **inputBuffer)
         if (!strcmp(inputBuffer[i], "<"))
         {
             // something to read from file
+            // use dup2 to assign file as input descriptor
+            int newfd = open(inputBuffer[i+1]);
+            //int dup2(*stdin, newfd);
             readIndex = i + 1;
         }
         else { readIndex = 0; }
         if (!strcmp(inputBuffer[i], ">"))
         {
             // something to write to file
+            //int dup2(*stdout, *inputBuffer[i+1]);
             writeIndex = i + 1;
         }
         else { writeIndex = 0; }
@@ -149,6 +153,7 @@ int executeProcess(char **inputBuffer)
         {
             return 0;
         }
+        //if (execlp( "/bin/sh", "/bin/sh", "-c", inputBuffer, (char *)NULL ))
         if (execvp(inputBuffer[0], inputBuffer) < 0)
         {
             printf("\nUnable to execute :");
