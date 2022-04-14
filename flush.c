@@ -11,6 +11,9 @@
 #define MAXCOM 1000 // max number of letters to be supported
 #define MAXLIST 100
 
+int readIndex;
+int writeIndex;
+
 
 int checkInput(char *inputString) // Kan gjøre dette på en annen måte?
 {
@@ -58,6 +61,18 @@ int parseString(char *inputString, char **inputBuffer)
             break;
         if (strlen(inputBuffer[i]) == 0)
             i--;
+        
+        // sjekker etter redirections
+        if (!strcmp(inputBuffer[i], "<"))
+        {
+            readIndex = i - 1;
+            printf("Read from file");
+        }
+        if (!strcmp(inputBuffer[i], ">"))
+        {
+            writeIndex = i + 1;
+            printf("Write to file");
+        }
     }
 
 
@@ -72,13 +87,18 @@ void redirection(char **parsedString)
 {
     int size = sizeof(parsedString);
 
-    for (int i = 0; i < size; i++)
+    for (int i = 0; i < 3; i++)
     {
-        if (strcmp(parsedString[i], "<"))
+        if (parsedString[i] = NULL)
+        {
+            break;
+        }
+        
+        if (!strcmp(parsedString[i], "<"))
         {
             printf("Read from file");
         }
-        if (strcmp(parsedString[i], ">"))
+        if (!strcmp(parsedString[i], ">"))
         {
             printf("Write to file");
         }
@@ -134,20 +154,29 @@ int executeProcess(char **inputBuffer)
         return 1;
     }
 }
-void readToConsole(char *filename) 
+char * readToBuffer(const char *filename) 
 {
     FILE *file = fopen(filename, "r");
-    char currentline[1000];
+    char *readBuffer[1000];
+    char *currentline[1000];
 
     assert(file != NULL);
 
-    while (fgets(currentline, sizeof(currentline), file) != NULL) {
-        fprintf(stderr, "got line: %s\n", currentline);
+    while (fgets(( char * )currentline, sizeof(currentline), file) != NULL) {
+        strcat(( char * )readBuffer, ( char * )currentline);
+        //fprintf(stderr, "got line: %s\n", currentline);
+
     }
+    printf("read: %s\n", ( char * )readBuffer);
 
     fclose(file);
+
+    char *str = ( char * )readBuffer;
+
+    return str;
 }
 
+// Used to learn, possibly not necessary in finished shell
 void readFromFileToFile(char *readfile, char *writefile) 
 {
     FILE *file = fopen(readfile, "r");
@@ -166,14 +195,36 @@ void readFromFileToFile(char *readfile, char *writefile)
     fclose(write);
 }
 
+void * writeToFile(char **readfrom, char *writefile) 
+{
+    assert(readfrom != NULL);
+    
+    FILE* write = fopen(writefile, "w");
+    rewind(write);
+
+    /*int i = 0;
+    while (readfrom[i] != NULL)
+    {
+        fprintf(write, "%s\n", readfrom[i]);
+        i++;
+    }*/
+    fprintf(write, "%s\n", ( char * )readfrom);
+    fclose(write);
+}
+
 int main()
 {
-    readFromFileToFile("textfile.txt", "writefile.txt");
 
     char inputString[MAXCOM], *inputBuffer[MAXLIST];
     char *parsedArgsPiped[MAXLIST];
     int flag = 0;
     // init_shell();
+    //char *currentline[MAXLIST];
+
+    char *readfrom = readToBuffer("textfile.txt");
+    writeToFile(( char ** )readfrom, "writefile.txt");
+
+
 
     while (1)
     {
@@ -185,7 +236,6 @@ int main()
         // process
         flag = parseString(inputString,
                            inputBuffer);
-        //redirection(inputBuffer);
         executeProcess(inputBuffer);
     }
     return 0;
