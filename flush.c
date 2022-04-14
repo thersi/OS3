@@ -11,8 +11,8 @@
 #define MAXCOM 1000 // max number of letters to be supported
 #define MAXLIST 100
 
-int readIndex;
-int writeIndex;
+int readIndex = 0;
+int writeIndex = 0;
 
 char * readToBuffer(const char *filename) 
 {
@@ -58,6 +58,7 @@ void readFromFileToFile(char *readfile, char *writefile)
 void * writeToFile(char **readfrom, char *writefile) 
 {
     assert(readfrom != NULL);
+    printf("Nå skrives det greier");
     
     FILE* write = fopen(writefile, "w");
     rewind(write);
@@ -111,15 +112,15 @@ int parseString(char *inputString, char **inputBuffer)
         if (!strcmp(inputBuffer[i], "<"))
         {
             // something to read from file
-            readIndex = i - 1;
+            readIndex = i + 1;
         }
-        else { readIndex = -1; }
+        else { readIndex = 0; }
         if (!strcmp(inputBuffer[i], ">"))
         {
             // something to write to file
             writeIndex = i + 1;
         }
-        else { writeIndex = -1; }
+        else { writeIndex = 0; }
     }
 
 
@@ -136,6 +137,7 @@ int executeProcess(char **inputBuffer)
     int status;
     pid_t pid = fork();
     char finalString[512] = "";
+    char* finalStr = finalString;
     if (pid == -1)
     {
         printf("\n Unable to fork");
@@ -166,19 +168,21 @@ int executeProcess(char **inputBuffer)
                 {
                     break;
                 }
-                strcat(finalString, inputBuffer[i]);
-                strcat(finalString, " ");
+                strcat(finalStr, inputBuffer[i]);
+                strcat(finalStr, " ");
             }
             // finalString er standard output
-            // disse er ikke heeelt ferdige enda 
-            if (readIndex) {
-                finalString = readToBuffer(inputBuffer[readIndex]);
+            // disse er ikke helt ferdige enda 
+            /*if (readIndex) {
+                finalStr = readToBuffer(inputBuffer[readIndex]);
             }
             if (writeIndex){
-                writeToFile(( char ** )finalString, inputBuffer[writeIndex]);
+                writeToFile(inputBuffer[writeIndex-2], inputBuffer[writeIndex]);
             }
-            else { printf("\n %s", finalString); }
-            printf("\n Exit status [%s] = %d \n", finalString, exitStatus);
+            printf("\nin %s", inputBuffer);*/
+            //else { printf("\n %s", finalString); }
+            printf("\n %s", finalStr);
+            printf("\n Exit status [%s] = %d \n", finalStr, exitStatus);
         }
         else if (WIFSIGNALED(status))
             psignal(WTERMSIG(status), "Exit signal");
@@ -198,8 +202,8 @@ int main()
     // init_shell();
     //char *currentline[MAXLIST];
 
-    char *readfrom = readToBuffer("textfile.txt");
-    writeToFile(( char ** )readfrom, "writefile.txt");
+    //char *readfrom = readToBuffer("textfile.txt");
+    //writeToFile(( char ** )readfrom, "writefile.txt");
 
 
 
