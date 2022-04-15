@@ -1,1 +1,1 @@
-påske:)
+-rw-r--r-- 1 fridafo fridafo 9 Apr 15 15:33 writefile.txt

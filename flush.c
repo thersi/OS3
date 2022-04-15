@@ -11,6 +11,7 @@
 
 #define MAXCOM 1000 // max number of letters to be supported
 #define MAXLIST 100
+#define MAX(x, y) (((x) > (y)) ? (x) : (y))
 
 int readIndex = 0;
 int writeIndex = 0;
@@ -118,19 +119,15 @@ int parseString(char *inputString, char **inputBuffer)
         {
             // something to read from file
             // use dup2 to assign file as input descriptor
-            printf("read.");
-            readIndex = i;
-            i--;
+            readIndex = i + 1;
+            //i--;
         }
-        else { readIndex = 0; }
         if (!strcmp(inputBuffer[i], ">"))
         {
             // something to write to file
-            printf("write.");
-            writeIndex = i;
-            i--;
+            writeIndex = i + 1;
+            //i--;
         }
-        else { writeIndex = 0; }
         
     }
 
@@ -144,16 +141,18 @@ int parseString(char *inputString, char **inputBuffer)
 
 int executeProcess(char **inputBuffer)
 {
-    if (writeIndex) {  
-        printf("write nowjened.");
+    //char *execBuffer[30];
+    if (writeIndex) {
         int newfd = open(inputBuffer[writeIndex], O_WRONLY | O_CREAT, S_IRUSR | S_IWUSR);
         output = dup(1);
         dup2(newfd, STDOUT_FILENO);
+        writeIndex = 0;
     }
     if (readIndex) {  
         int newfd = open(inputBuffer[readIndex], O_RDONLY);
         input = dup(0);
-        int dup2(newfd, stdin);
+        dup2(newfd, STDIN_FILENO);
+        readIndex = 0;
     }
     // Forking a child
     int status;
@@ -171,7 +170,17 @@ int executeProcess(char **inputBuffer)
         {
             return 0;
         }
+        /*if (strcmp(inputBuffer[0], "ls") == 0)
+        {
+            char* argument_list[] = {"ls", NULL};
+            if (execvp(inputBuffer[0], argument_list) < 0)
+            {
+            printf("\nUnable to execute :");
+            }
+            exit(0);
+        }*/
         //if (execlp( "/bin/sh", "/bin/sh", "-c", inputBuffer, (char *)NULL ))
+        //if (execvp(inputBuffer[0], memcpy(execBuffer, &inputBuffer, sizeof(inputBuffer)-MAX(readIndex, writeIndex))) < 0)
         if (execvp(inputBuffer[0], inputBuffer) < 0)
         {
             printf("\nUnable to execute :");
@@ -182,6 +191,7 @@ int executeProcess(char **inputBuffer)
     {
         // Dette funker ikke for cd, se nærmere på det
         wait(&status);
+        //printf("execbuf: %s\n", execBuffer);
         //stdout and stdin back to console
         dup2(output, 1);
         close(output);
@@ -200,16 +210,6 @@ int executeProcess(char **inputBuffer)
                 strcat(finalStr, inputBuffer[i]);
                 strcat(finalStr, " ");
             }
-            // finalString er standard output
-            // disse er ikke helt ferdige enda 
-            /*if (readIndex) {
-                finalStr = readToBuffer(inputBuffer[readIndex]);
-            }
-            if (writeIndex){
-                writeToFile(inputBuffer[writeIndex-2], inputBuffer[writeIndex]);
-            }
-            printf("\nin %s", inputBuffer);*/
-            //else { printf("\n %s", finalString); }
             printf("\n %s", finalStr);
             printf("\n Exit status [%s] = %d \n", finalStr, exitStatus);
         }
