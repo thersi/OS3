@@ -2,6 +2,7 @@
 #include <string.h>
 #include <stdlib.h>
 #include <unistd.h>
+#include <fcntl.h>
 #include <sys/types.h>
 #include <sys/wait.h>
 #include <readline/readline.h>
@@ -13,6 +14,8 @@
 
 int readIndex = 0;
 int writeIndex = 0;
+int output = 1;
+int input = 0;
 
 char * readToBuffer(const char *filename) 
 {
@@ -94,6 +97,8 @@ int activeDirectory()
 
 int parseString(char *inputString, char **inputBuffer)
 {
+    output = dup(1);
+    input = dup(0);
 
     int i;
 
@@ -107,24 +112,26 @@ int parseString(char *inputString, char **inputBuffer)
             break;
         if (strlen(inputBuffer[i]) == 0)
             i--;
-        
+
         // sjekker etter redirections
         if (!strcmp(inputBuffer[i], "<"))
         {
             // something to read from file
             // use dup2 to assign file as input descriptor
-            int newfd = open(inputBuffer[i+1]);
-            //int dup2(*stdin, newfd);
-            readIndex = i + 1;
+            printf("read.");
+            readIndex = i;
+            i--;
         }
         else { readIndex = 0; }
         if (!strcmp(inputBuffer[i], ">"))
         {
             // something to write to file
-            //int dup2(*stdout, *inputBuffer[i+1]);
-            writeIndex = i + 1;
+            printf("write.");
+            writeIndex = i;
+            i--;
         }
         else { writeIndex = 0; }
+        
     }
 
 
@@ -137,6 +144,17 @@ int parseString(char *inputString, char **inputBuffer)
 
 int executeProcess(char **inputBuffer)
 {
+    if (writeIndex) {  
+        printf("write nowjened.");
+        int newfd = open(inputBuffer[writeIndex], O_WRONLY | O_CREAT, S_IRUSR | S_IWUSR);
+        output = dup(1);
+        dup2(newfd, STDOUT_FILENO);
+    }
+    if (readIndex) {  
+        int newfd = open(inputBuffer[readIndex], O_RDONLY);
+        input = dup(0);
+        int dup2(newfd, stdin);
+    }
     // Forking a child
     int status;
     pid_t pid = fork();
@@ -164,9 +182,15 @@ int executeProcess(char **inputBuffer)
     {
         // Dette funker ikke for cd, se nærmere på det
         wait(&status);
+        //stdout and stdin back to console
+        dup2(output, 1);
+        close(output);
+        dup2(input, 1);
+        close(input);
         if (WIFEXITED(status))
         {
             int exitStatus = WEXITSTATUS(status);
+
             for (int i = 0; i < MAXLIST; i++)
             {
                 if (!inputBuffer[i])
