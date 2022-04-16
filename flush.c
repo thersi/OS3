@@ -78,7 +78,11 @@ int checkInput(char *inputString) // Kan gjøre dette på en annen måte?
 {
     char *stringBuffer;
 
-    stringBuffer = readline(": ");
+    //stringBuffer = readline(": ");
+
+    stringBuffer = fgets(inputString, MAXLIST, stdin);
+    stringBuffer[strlen(stringBuffer) - 1] = '\0';
+
     if (strlen(stringBuffer) > 0)
     {
         strcpy(inputString, stringBuffer);
@@ -95,7 +99,7 @@ int activeDirectory()
         perror("Error when calling getcwd()");
         return 0;
     } // Gets the path name of the working directory
-    printf(" %s", pathBuffer);
+    printf(" %s: ", pathBuffer);
     return 1;
 }
 
@@ -175,18 +179,6 @@ void findCommand(char **inputBuffer, char **commandBuffer)
 
 int executeProcess(char **inputBuffer, char **commandBuffer)
 {
-    if (writeIndex) {
-        int newfd = open(inputBuffer[writeIndex], O_WRONLY | O_CREAT, S_IRUSR | S_IWUSR);
-        output = dup(1);
-        dup2(newfd, STDOUT_FILENO);
-        writeIndex = 0;
-    }
-    if (readIndex) {  
-        int newfd = open(inputBuffer[readIndex], O_RDONLY);
-        input = dup(0);
-        dup2(newfd, STDIN_FILENO);
-        readIndex = 0;
-    }
 
     /*for (int i = 0; i < MAXLIST; i++)
     {
@@ -208,6 +200,18 @@ int executeProcess(char **inputBuffer, char **commandBuffer)
     }
     else if (pid == 0)
     {
+        if (writeIndex) {
+            int newfd = open(inputBuffer[writeIndex], O_WRONLY | O_CREAT, S_IRUSR | S_IWUSR);
+            output = dup(1);
+            dup2(newfd, STDOUT_FILENO);
+            writeIndex = 0;
+        }
+        if (readIndex) {  
+            int newfd = open(inputBuffer[readIndex], O_RDONLY);
+            input = dup(0);
+            dup2(newfd, STDIN_FILENO);
+            readIndex = 0;
+        }
         if (strcmp(inputBuffer[0], "cd") == 0)
         {
             return 0;
@@ -217,6 +221,13 @@ int executeProcess(char **inputBuffer, char **commandBuffer)
         {
             printf("\nUnable to execute :");
         }
+        //stdout and stdin back to console
+        dup2(output, 1);
+        close(output);
+        close(*inputBuffer[writeIndex]);
+        dup2(input, 1);
+        close(input);
+        close(*inputBuffer[readIndex]);
         exit(0);
     }
     else
@@ -224,13 +235,13 @@ int executeProcess(char **inputBuffer, char **commandBuffer)
         // Dette funker ikke for cd, se nærmere på det
         // legge inn først sjekk etter & og terminere etter den funksjonaliteten dersom det finnes
         wait(&status);
-        //stdout and stdin back to console
+        /*/stdout and stdin back to console
         dup2(output, 1);
         close(output);
-        //close(inputBuffer[writeIndex]);
+        close(inputBuffer[writeIndex]);
         dup2(input, 1);
         close(input);
-        //close(inputBuffer[readIndex]);
+        close(inputBuffer[readIndex]);*/
         if (WIFEXITED(status))
         {
             int exitStatus = WEXITSTATUS(status);
@@ -282,6 +293,13 @@ int main()
                            inputBuffer);
         findCommand(inputBuffer, commandBuffer);
         executeProcess(inputBuffer, commandBuffer);
+        /*/stdout and stdin back to console
+        dup2(output, 1);
+        close(output);
+        close(inputBuffer[writeIndex]);
+        dup2(input, 1);
+        close(input);
+        close(inputBuffer[readIndex]);*/
     }
     return 0;
 }
