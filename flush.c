@@ -146,11 +146,6 @@ int parseString(char *inputString, char **inputBuffer)
             bg = 1;
         }
     }
-
-    if (strcmp(inputBuffer[0], "cd") == 0)
-    {
-        chdir(inputBuffer[1]); // Sjekk om child skal gjøre dette.
-    }
     return 1;
 }
 
