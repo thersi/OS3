@@ -1,5 +1,6 @@
 #include <stdio.h>
 #include <stdlib.h>
+#include <sys/wait.h>
 
 struct Node
 {
@@ -39,9 +40,40 @@ int isActive(struct Node *node)
     }
     return 0;
 }
+int getZombie(int pid)
+{
+    int status;
+    if (waitpid(pid, &status, WNOHANG) && WIFEXITED(status))
+    {
+        return WEXITSTATUS(status);
+    }
+    return -1;
+}
+int removeZombies()
+{
+    struct Node *node = head->next;
+    struct Node *previous = head;
+    while (node != NULL)
+    {
+        if (!isActive(node))
+        {
+            int status = getZombie(node->pid);
+            if (status != -1)
+            {
+                printf("\n Zombie exit status [%s] = %d\n", node->command, node->exitStatus);
+                previous->next = node->next;
+            }
+        }
+        else
+        {
+            previous = node;
+        }
+        node = node->next;
+    }
+}
 
 // display the zombies
-void printCommands()
+void removeZombies2()
 {
     struct Node *node = head;
     struct Node *previous;
@@ -50,15 +82,17 @@ void printCommands()
     {
         if (!isActive(node))
         {
-            printf("\nExit status [%s] = %d \n", node->command, node->exitStatus);
+
+            int status = getZombie(node->pid);
             if (node == head)
             {
+
                 // change first to point to next link
                 head = head->next;
             }
-            else
+            if (status != -1)
             {
-                // bypass the current link
+                printf("\n Zombie exit status [%s] = %d", node->command, node->exitStatus);
                 previous->next = node->next;
             }
         }

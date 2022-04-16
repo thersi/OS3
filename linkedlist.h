@@ -13,3 +13,7 @@ void printRunning();
 struct Node *find(int pid);
 
 void setExitStatus(int pid, int exitStatus);
+
+int getZombie(int pid);
+
+int removeZombies();

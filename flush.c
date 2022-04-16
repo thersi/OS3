@@ -203,7 +203,7 @@ int executeProcess(char **inputBuffer, char **commandBuffer)
     pid_t pid = fork();
     char finalString[512] = "";
     char *finalStr = finalString;
-    if (strcmp(inputBuffer[0], "cd") == 0)
+    if (strcmp(inputBuffer[0], "cd") == 0) // Fant ut av at denne ikke trenger være child process Ctrl d
     {
         chdir(inputBuffer[1]);
     }
@@ -230,12 +230,20 @@ int executeProcess(char **inputBuffer, char **commandBuffer)
             dup2(newfd, STDIN_FILENO);
             readIndex = 0;
         }
+        if (strcmp(inputBuffer[0], "jobs") == 0)
+        {
+            printRunning();
+        }
+        else
+        {
+            execvp(commandBuffer[0], commandBuffer);
+        }
 
         // if (execvp(inputBuffer[0], strncpy(execBuffer, &inputBuffer, sizeof(inputBuffer)-MIN(readIndex, writeIndex)-1)) < 0)
-        if (execvp(commandBuffer[0], commandBuffer) < 0 && strcmp(inputBuffer[0], "cd") != 0)
-        {
-            printf("\nUnable to execute :");
-        }
+        /*     if (execvp(commandBuffer[0], commandBuffer) < 0 && strcmp(inputBuffer[0], "cd") != 0)
+            {
+                printf("\nUnable to execute :");
+            } */
         // stdout and stdin back to console
         dup2(output, 1);
         close(output);
@@ -300,8 +308,8 @@ int main()
 
     while (1)
     {
-        printRunning();
-        // print shell line
+        // printRunning();
+        //  print shell line
         activeDirectory();
         // take input
         if (checkInput(inputString))
@@ -312,6 +320,7 @@ int main()
                            inputBuffer);
         findCommand(inputBuffer, commandBuffer);
         executeProcess(inputBuffer, commandBuffer);
+        // removeZombies();
 
         /*/stdout and stdin back to console
         dup2(output, 1);
