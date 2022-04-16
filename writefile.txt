@@ -1,2 +1,11 @@
-Heisaduerien
-ecute :
+total 64
+-rw------- 1 fridafo fridafo     0 Apr 15 09:37 #‚ÍˆU
+-rw-r--r-- 1 fridafo fridafo     5 Apr  1 12:42 README.md
+-rwxr-xr-x 1 fridafo fridafo 18296 Apr 16 15:57 a.out
+-rw-r--r-- 1 fridafo fridafo  6791 Apr 16 15:57 flush.c
+-rw-r--r-- 1 fridafo fridafo  6587 Apr  3 23:09 flushhh.c
+-rw-r--r-- 1 fridafo fridafo  2614 Apr 16 14:58 linkedlist.c
+-rw-r--r-- 1 fridafo fridafo  4794 Apr 15 16:47 linkedlisttttt.c
+-rw-r--r-- 1 fridafo fridafo  2745 Apr  3 23:09 test.c
+-rw-r--r-- 1 fridafo fridafo    11 Apr 16 15:58 textfile.txt
+-rw-r--r-- 1 fridafo fridafo    13 Apr 16 15:58 writefile.txt

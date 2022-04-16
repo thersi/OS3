@@ -17,6 +17,7 @@ int readIndex = 0;
 int writeIndex = 0;
 int output = 1;
 int input = 0;
+int bg = 0;
 
 //not necessary
 char * readToBuffer(const char *filename) 
@@ -129,6 +130,11 @@ int parseString(char *inputString, char **inputBuffer)
             writeIndex = i + 1;
             //i--;
         }
+        if (!strcmp(inputBuffer[i], "&"))
+        {
+            // task should be executed as background process
+            bg = 1;
+        }
         
     }
 
@@ -150,12 +156,18 @@ void findCommand(char **inputBuffer, char **commandBuffer)
             commandBuffer[i] = NULL;
             break;
         }
-        if (strlen(inputBuffer[i]) == 0)
+        if (strlen(inputBuffer[i]) == 0) {
             i--;
-        if (!strcmp(inputBuffer[i], "<"))
+        }
+        if (!strcmp(inputBuffer[i], "<")) {
             break;
-        if (!strcmp(inputBuffer[i], ">"))
+        }
+        if (!strcmp(inputBuffer[i], ">")) {
             break;
+        }
+        if (!strcmp(inputBuffer[i], "&")) {
+            break;
+        }
         
         commandBuffer[i] = inputBuffer[i];
     }
@@ -178,7 +190,7 @@ int executeProcess(char **inputBuffer, char **commandBuffer)
 
     /*for (int i = 0; i < MAXLIST; i++)
     {
-        if (commandBuffer[i] == NULL)
+        if (inputBuffer[i] == NULL)
             break;
         printf("commandbuffr: %s\n", commandBuffer[i]);
         printf("inputbuffr: %s\n", inputBuffer[i]);
@@ -215,8 +227,10 @@ int executeProcess(char **inputBuffer, char **commandBuffer)
         //stdout and stdin back to console
         dup2(output, 1);
         close(output);
+        //close(inputBuffer[writeIndex]);
         dup2(input, 1);
         close(input);
+        //close(inputBuffer[readIndex]);
         if (WIFEXITED(status))
         {
             int exitStatus = WEXITSTATUS(status);
