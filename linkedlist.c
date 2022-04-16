@@ -1,13 +1,12 @@
 #include <stdio.h>
-#include <string.h>
 #include <stdlib.h>
-#include <stdbool.h>
 
 struct Node {
     char *command;
     int exitStatus;
     int pid;
     struct Node *next;
+    int active;
 };
 
 struct Node *head = NULL;
@@ -16,17 +15,25 @@ struct Node *current = NULL;
 //insert node as head
 void insertNode(char *command, int pid) {
    //create a link
-   struct Node *link = (struct Node*) malloc(sizeof(struct Node));
+   struct Node *node = (struct Node*) malloc(sizeof(struct Node));
 	
-   link->pid = pid;
-   link->command = command;
-   link->exitStatus = NULL;
+   node->pid = pid;
+   node->command = command;
+   node->exitStatus = 0;
+   node->active = 1;
 	
    //point it to old first node
-   link->next = head;
+   node->next = head;
 	
    //point first to new first node
-   head = link;
+   head = node;
+}
+
+int isActive(struct Node* node) {
+    if (node->active) {
+        return 1;
+    }
+    return 0;
 }
 
 //display the zombies
@@ -35,8 +42,8 @@ void printCommands() {
    struct Node *previous;
    //start from the beginning
    while(node != NULL) {
-        if (&node->exitStatus != NULL) {
-            printf("\n Exit status [%s] = %d \n",node->command,node->exitStatus);
+        if (!isActive(node)) {
+            printf("\nExit status [%s] = %d \n",node->command,node->exitStatus);
             if(node == head) {
             //change first to point to next link
                 head = head->next;
@@ -57,24 +64,63 @@ void printRunning() {
    struct Node *node = head;
    //start from the beginning
    while(node != NULL) {
-        if (&node->exitStatus == NULL) {
-            printf("\n pid: %d, command: %s", node->pid, node->command);
+        if (isActive(node)) {
+            printf("pid: %d, command: %s\n", node->pid, node->command);
         }
         node = node->next;
    }
 }
 
+//find a link with given key
+struct Node* find(int pid) {
+
+   //start from the first link
+   struct Node* node = head;
+
+   //if list is empty
+   if(head == NULL) {
+      return NULL;
+   }
+
+   //navigate through list
+   while(node->pid != pid) {
+	
+      //if it is last node
+      if(node->next == NULL) {
+         return NULL;
+      } else {
+         //go to next link
+         node = node->next;
+      }
+   }      
+	
+   //if data found, return the current Link
+   return node;
+}
+
+void setExitStatus(int pid, int exitStatus) {
+    struct Node* node = find(pid);
+
+    node->exitStatus = exitStatus;
+    node->active = 0;
+}
+
 
 void main() {
-    //void insertNode(char *command, int exitStatus, int pid) {
     insertNode("ls",1);
     insertNode("ls -l",2);
     insertNode("cd",3);
 	
-    //print list
-    printf("printing commands");
+    printf("printing commands\n");
     printCommands();
-    printf("printing running processes\n");
+    printf("\nprinting running processes\n");
+    printRunning();
+
+    setExitStatus(2, 3);
+
+    printf("printing commands\n");
+    printCommands();
+    printf("\nprinting running processes\n");
     printRunning();
 
    

@@ -11,13 +11,14 @@
 
 #define MAXCOM 1000 // max number of letters to be supported
 #define MAXLIST 100
-#define MAX(x, y) (((x) > (y)) ? (x) : (y))
+#define MIN(x, y) (((x) < (y)) ? (x) : (y))
 
 int readIndex = 0;
 int writeIndex = 0;
 int output = 1;
 int input = 0;
 
+//not necessary
 char * readToBuffer(const char *filename) 
 {
     FILE *file = fopen(filename, "r");
@@ -40,7 +41,7 @@ char * readToBuffer(const char *filename)
     return str;
 }
 
-// Used to learn, possibly not necessary in finished shell
+// not necessary in finished shell
 void readFromFileToFile(char *readfile, char *writefile) 
 {
     FILE *file = fopen(readfile, "r");
@@ -59,6 +60,7 @@ void readFromFileToFile(char *readfile, char *writefile)
     fclose(write);
 }
 
+//not necessary
 void * writeToFile(char **readfrom, char *writefile) 
 {
     assert(readfrom != NULL);
@@ -118,7 +120,6 @@ int parseString(char *inputString, char **inputBuffer)
         if (!strcmp(inputBuffer[i], "<"))
         {
             // something to read from file
-            // use dup2 to assign file as input descriptor
             readIndex = i + 1;
             //i--;
         }
@@ -131,7 +132,6 @@ int parseString(char *inputString, char **inputBuffer)
         
     }
 
-
     if (strcmp(inputBuffer[0], "cd") == 0)
     {
         chdir(inputBuffer[1]); // Sjekk om child skal gjøre dette.
@@ -141,7 +141,6 @@ int parseString(char *inputString, char **inputBuffer)
 
 int executeProcess(char **inputBuffer)
 {
-    //char *execBuffer[30];
     if (writeIndex) {
         int newfd = open(inputBuffer[writeIndex], O_WRONLY | O_CREAT, S_IRUSR | S_IWUSR);
         output = dup(1);
@@ -170,17 +169,7 @@ int executeProcess(char **inputBuffer)
         {
             return 0;
         }
-        /*if (strcmp(inputBuffer[0], "ls") == 0)
-        {
-            char* argument_list[] = {"ls", NULL};
-            if (execvp(inputBuffer[0], argument_list) < 0)
-            {
-            printf("\nUnable to execute :");
-            }
-            exit(0);
-        }*/
-        //if (execlp( "/bin/sh", "/bin/sh", "-c", inputBuffer, (char *)NULL ))
-        //if (execvp(inputBuffer[0], memcpy(execBuffer, &inputBuffer, sizeof(inputBuffer)-MAX(readIndex, writeIndex))) < 0)
+        //if (execvp(inputBuffer[0], strncpy(execBuffer, &inputBuffer, sizeof(inputBuffer)-MIN(readIndex, writeIndex)-1)) < 0)
         if (execvp(inputBuffer[0], inputBuffer) < 0)
         {
             printf("\nUnable to execute :");
@@ -191,7 +180,6 @@ int executeProcess(char **inputBuffer)
     {
         // Dette funker ikke for cd, se nærmere på det
         wait(&status);
-        //printf("execbuf: %s\n", execBuffer);
         //stdout and stdin back to console
         dup2(output, 1);
         close(output);
@@ -211,7 +199,7 @@ int executeProcess(char **inputBuffer)
                 strcat(finalStr, " ");
             }
             printf("\n %s", finalStr);
-            printf("\n Exit status [%s] = %d \n", finalStr, exitStatus);
+            printf("\n Exit status [ %s] = %d \n", finalStr, exitStatus);
         }
         else if (WIFSIGNALED(status))
             psignal(WTERMSIG(status), "Exit signal");

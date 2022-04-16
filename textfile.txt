@@ -1,5 +1,5 @@
+==> writefile.txt <==
 Heisaduerien
-for 
-en
-sjuk
-påske:)
+
+==> textfile.txt <==
+==> writefile.txt <==
