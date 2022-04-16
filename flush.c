@@ -139,7 +139,29 @@ int parseString(char *inputString, char **inputBuffer)
     return 1;
 }
 
-int executeProcess(char **inputBuffer)
+void findCommand(char **inputBuffer, char **commandBuffer)
+{
+    int i;
+
+    for (i = 0; i < MAXLIST; i++)
+    {
+        if (inputBuffer[i] == NULL)
+        {
+            commandBuffer[i] = NULL;
+            break;
+        }
+        if (strlen(inputBuffer[i]) == 0)
+            i--;
+        if (!strcmp(inputBuffer[i], "<"))
+            break;
+        if (!strcmp(inputBuffer[i], ">"))
+            break;
+        
+        commandBuffer[i] = inputBuffer[i];
+    }
+}
+
+int executeProcess(char **inputBuffer, char **commandBuffer)
 {
     if (writeIndex) {
         int newfd = open(inputBuffer[writeIndex], O_WRONLY | O_CREAT, S_IRUSR | S_IWUSR);
@@ -153,6 +175,15 @@ int executeProcess(char **inputBuffer)
         dup2(newfd, STDIN_FILENO);
         readIndex = 0;
     }
+
+    /*for (int i = 0; i < MAXLIST; i++)
+    {
+        if (commandBuffer[i] == NULL)
+            break;
+        printf("commandbuffr: %s\n", commandBuffer[i]);
+        printf("inputbuffr: %s\n", inputBuffer[i]);
+
+    }*/
     // Forking a child
     int status;
     pid_t pid = fork();
@@ -170,7 +201,7 @@ int executeProcess(char **inputBuffer)
             return 0;
         }
         //if (execvp(inputBuffer[0], strncpy(execBuffer, &inputBuffer, sizeof(inputBuffer)-MIN(readIndex, writeIndex)-1)) < 0)
-        if (execvp(inputBuffer[0], inputBuffer) < 0)
+        if (execvp(commandBuffer[0], commandBuffer) < 0)
         {
             printf("\nUnable to execute :");
         }
@@ -179,6 +210,7 @@ int executeProcess(char **inputBuffer)
     else
     {
         // Dette funker ikke for cd, se nærmere på det
+        // legge inn først sjekk etter & og terminere etter den funksjonaliteten dersom det finnes
         wait(&status);
         //stdout and stdin back to console
         dup2(output, 1);
@@ -213,7 +245,7 @@ int executeProcess(char **inputBuffer)
 int main()
 {
 
-    char inputString[MAXCOM], *inputBuffer[MAXLIST];
+    char inputString[MAXCOM], *inputBuffer[MAXLIST], *commandBuffer[MAXLIST];
     char *parsedArgsPiped[MAXLIST];
     int flag = 0;
     // init_shell();
@@ -234,7 +266,8 @@ int main()
         // process
         flag = parseString(inputString,
                            inputBuffer);
-        executeProcess(inputBuffer);
+        findCommand(inputBuffer, commandBuffer);
+        executeProcess(inputBuffer, commandBuffer);
     }
     return 0;
 }

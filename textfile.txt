@@ -1,5 +1,1 @@
-==> writefile.txt <==
 Heisaduerien
-
-==> textfile.txt <==
-==> writefile.txt <==

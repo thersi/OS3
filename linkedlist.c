@@ -105,6 +105,8 @@ void setExitStatus(int pid, int exitStatus) {
     node->active = 0;
 }
 
+//trenger en som fjerner zombes også så de ikke kommer hver gang & kalles
+
 
 void main() {
     insertNode("ls",1);
