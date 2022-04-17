@@ -83,7 +83,7 @@ int checkInput(char *inputString) // Kan gjøre dette på en annen måte?
     stringBuffer = fgets(inputString, MAXLIST, stdin);
     if (stringBuffer == NULL) // Checks if null which is the case for ctrl-d, then exits
     {
-        exit(1); // SKal dette være exit kode 1 eller 0?
+        exit(EXIT_FAILURE); // SKal dette være exit kode 1 eller 0?
     }
 
     stringBuffer[strlen(stringBuffer) - 1] = '\0';
@@ -206,7 +206,7 @@ int executeProcess(char **inputBuffer, char **commandBuffer)
     pid_t pid = fork();
     char finalString[512] = "";
     char *finalStr = finalString;
-    if (strcmp(inputBuffer[0], "cd") == 0) // Fant ut av at denne ikke trenger være child process Ctrl d
+    if (!strcmp(inputBuffer[0], "cd")) // Fant ut av at denne ikke trenger være child process Ctrl d
     {
         chdir(inputBuffer[1]);
     }
@@ -234,8 +234,9 @@ int executeProcess(char **inputBuffer, char **commandBuffer)
             dup2(newfd, STDIN_FILENO);
             readIndex = 0;
         }
-        if (strcmp(inputBuffer[0], "jobs") == 0)
+        if (!strcmp(inputBuffer[0], "jobs"))
         {
+
             printRunning();
         }
         else
@@ -243,26 +244,20 @@ int executeProcess(char **inputBuffer, char **commandBuffer)
             execvp(commandBuffer[0], commandBuffer);
         }
 
-        // if (execvp(inputBuffer[0], strncpy(execBuffer, &inputBuffer, sizeof(inputBuffer)-MIN(readIndex, writeIndex)-1)) < 0)
-        if (execvp(commandBuffer[0], commandBuffer) < 0 && strcmp(inputBuffer[0], "cd") != 0)
-        {
-            printf("\nUnable to execute :");
-        }
-        // stdout and stdin back to console
         dup2(output, 1);
         close(output);
         close(*inputBuffer[writeIndex]);
         dup2(input, 1);
         close(input);
         close(*inputBuffer[readIndex]);
-        exit(0);
+        exit(EXIT_FAILURE);
     }
     else
     {
-
+        printf("%d \n", bg);
         if (bg)
         {
-            insertNode(commandBuffer[0], pid);
+            insertNode(*inputBuffer, pid);
             return 0;
         }
 

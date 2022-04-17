@@ -49,13 +49,13 @@ int getZombie(int pid)
     }
     return -1;
 }
-int removeZombies2()
+int removeZombies()
 {
     struct Node *node = head->next;
     struct Node *previous = head;
     while (node != NULL)
     {
-        if (!isActive(node)) // Is active or !isActive() ??
+        if (isActive(node)) // Is active or !isActive() ??
         {
             int status = getZombie(node->pid);
             if (status != -1)
@@ -72,7 +72,7 @@ int removeZombies2()
         node = node->next;
     }
 }
-
+/*
 // display the zombies
 void removeZombies()
 {
@@ -104,7 +104,7 @@ void removeZombies()
         node = node->next;
     }
 }
-
+ */
 // display the active processes
 void printRunning()
 {
