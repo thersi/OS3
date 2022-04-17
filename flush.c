@@ -263,42 +263,41 @@ int executeProcess(char **inputBuffer, char **commandBuffer)
         if (bg)
         {
             insertNode(commandBuffer[0], pid);
+            return 0;
         }
-        else
+
+        // Dette funker ikke for cd, se nærmere på det
+        // legge inn først sjekk etter & og terminere etter den funksjonaliteten dersom det finnes
+        waitpid(pid, &status, 0);
+
+        /*/stdout and stdin back to console
+        dup2(output, 1);
+        close(output);
+        close(inputBuffer[writeIndex]);
+        dup2(input, 1);
+        close(input);
+        close(inputBuffer[readIndex]);*/
+        if (WIFEXITED(status))
         {
-            // Dette funker ikke for cd, se nærmere på det
-            // legge inn først sjekk etter & og terminere etter den funksjonaliteten dersom det finnes
-            wait(&status);
+            int exitStatus = WEXITSTATUS(status);
 
-            /*/stdout and stdin back to console
-            dup2(output, 1);
-            close(output);
-            close(inputBuffer[writeIndex]);
-            dup2(input, 1);
-            close(input);
-            close(inputBuffer[readIndex]);*/
-            if (WIFEXITED(status))
+            for (int i = 0; i < MAXLIST; i++)
             {
-                int exitStatus = WEXITSTATUS(status);
-
-                for (int i = 0; i < MAXLIST; i++)
+                if (!inputBuffer[i])
                 {
-                    if (!inputBuffer[i])
-                    {
-                        break;
-                    }
-                    strcat(finalStr, inputBuffer[i]);
-                    strcat(finalStr, " ");
+                    break;
                 }
-                printf("\n %s", finalStr);
-                printf("\n Exit status [ %s] = %d \n", finalStr, exitStatus);
+                strcat(finalStr, inputBuffer[i]);
+                strcat(finalStr, " ");
             }
-            else if (WIFSIGNALED(status))
-                psignal(WTERMSIG(status), "Exit signal");
-
-            // wait(status); // Equivalent to waitPid(-1, &status, 0)
-            return 1;
+            printf("\n %s", finalStr);
+            printf("\n Exit status [ %s] = %d \n", finalStr, exitStatus);
         }
+        else if (WIFSIGNALED(status))
+            psignal(WTERMSIG(status), "Exit signal");
+
+        // wait(status); // Equivalent to waitPid(-1, &status, 0)
+        return 1;
     }
 }
 
@@ -316,6 +315,7 @@ int main()
 
     while (1)
     {
+        bg = 0;
         // printRunning();
         //  print shell line
         activeDirectory();
