@@ -1,5 +1,6 @@
 #include <stdio.h>
 #include <stdlib.h>
+#include <string.h>
 #include <sys/wait.h>
 
 struct Node
@@ -51,8 +52,13 @@ int getZombie(int pid)
 }
 int removeZombies()
 {
+    if (head == NULL)
+    {
+        return 0;
+    }
     struct Node *node = head->next;
     struct Node *previous = head;
+
     while (node != NULL)
     {
         if (isActive(node)) // Is active or !isActive() ??
@@ -110,7 +116,7 @@ void printRunning()
 {
     struct Node *node = head;
     // start from the beginning
-    while (node != NULL)
+    while (node != NULL && strcmp(&node->command[0], "jobs")) // MAn vil kanskje dobbeltsjekke denne
     {
         if (isActive(node))
         {

@@ -169,14 +169,17 @@ void findCommand(char **inputBuffer, char **commandBuffer)
         }
         if (!strcmp(inputBuffer[i], "<"))
         {
+            commandBuffer[i] = NULL;
             break;
         }
         if (!strcmp(inputBuffer[i], ">"))
         {
+            commandBuffer[i] = NULL;
             break;
         }
         if (!strcmp(inputBuffer[i], "&"))
         {
+            commandBuffer[i] = NULL;
             break;
         }
 
@@ -322,7 +325,7 @@ int main()
         findCommand(inputBuffer, commandBuffer);
         executeProcess(inputBuffer, commandBuffer);
         removeZombies();
-        //   bg = 0;
+        //    bg = 0;
 
         /*/stdout and stdin back to console
         dup2(output, 1);
