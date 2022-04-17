@@ -49,18 +49,19 @@ int getZombie(int pid)
     }
     return -1;
 }
-int removeZombies()
+int removeZombies2()
 {
     struct Node *node = head->next;
     struct Node *previous = head;
     while (node != NULL)
     {
-        if (!isActive(node))
+        if (!isActive(node)) // Is active or !isActive() ??
         {
             int status = getZombie(node->pid);
             if (status != -1)
             {
                 printf("\n Zombie exit status [%s] = %d\n", node->command, node->exitStatus);
+                // waitpid(-1, NULL, WNOHANG);
                 previous->next = node->next;
             }
         }
@@ -73,7 +74,7 @@ int removeZombies()
 }
 
 // display the zombies
-void removeZombies2()
+void removeZombies()
 {
     struct Node *node = head;
     struct Node *previous;

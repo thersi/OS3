@@ -19,7 +19,7 @@ int writeIndex = 0;
 int output = 1;
 int input = 0;
 int bg = 0;
-
+/*
 // not necessary
 char *
 readToBuffer(const char *filename)
@@ -42,12 +42,13 @@ readToBuffer(const char *filename)
     char *str = (char *)readBuffer;
 
     return str;
-}
-
+} */
+/*
 // not necessary in finished shell
 void readFromFileToFile(char *readfile, char *writefile)
 {
     FILE *file = fopen(readfile, "r");
+
     char currentline[1000];
 
     assert(file != NULL);
@@ -74,7 +75,7 @@ void *writeToFile(char **readfrom, char *writefile)
     rewind(write);
     fprintf(write, "%s\n", (char *)readfrom);
     fclose(write);
-}
+} */
 
 int checkInput(char *inputString) // Kan gjøre dette på en annen måte?
 {
@@ -82,10 +83,11 @@ int checkInput(char *inputString) // Kan gjøre dette på en annen måte?
     stringBuffer = fgets(inputString, MAXLIST, stdin);
     if (stringBuffer == NULL) // Checks if null which is the case for ctrl-d, then exits
     {
-        exit(1);
+        exit(1); // SKal dette være exit kode 1 eller 0?
     }
 
     stringBuffer[strlen(stringBuffer) - 1] = '\0';
+
     // fflush(stdin);
 
     if (strlen(stringBuffer) > 0)
@@ -118,7 +120,7 @@ int parseString(char *inputString, char **inputBuffer)
 
     for (i = 0; i < MAXLIST; i++)
     {
-        char sep[2] = {' ', '\t'};
+        char sep[3] = {' ', '\t', '\n'};
 
         inputBuffer[i] = strsep(&inputString, sep);
 
@@ -132,6 +134,7 @@ int parseString(char *inputString, char **inputBuffer)
         {
             // something to read from file
             readIndex = i + 1;
+
             // i--;
         }
         if (!strcmp(inputBuffer[i], ">"))
@@ -194,6 +197,11 @@ int executeProcess(char **inputBuffer, char **commandBuffer)
     }*/
 
     // Forking a child
+    /*     int background = 0;
+        if (!strcmp(inputBuffer[strlen(*inputBuffer) - 1], "&"))
+        {
+            background = 1;
+        } */
     int status;
     pid_t pid = fork();
     char finalString[512] = "";
@@ -205,21 +213,22 @@ int executeProcess(char **inputBuffer, char **commandBuffer)
 
     if (pid == -1)
     {
-        printf("\n Unable to fork");
+        // printf("\n Unable to fork");
         return 0;
     }
     else if (pid == 0)
     {
 
-        if (writeIndex)
-        {
-            int newfd = open(inputBuffer[writeIndex], O_WRONLY | O_CREAT, S_IRUSR | S_IWUSR);
-            output = dup(1);
-            dup2(newfd, STDOUT_FILENO);
-            writeIndex = 0;
-        }
+        /*     if (writeIndex)
+            {
+                int newfd = open(inputBuffer[writeIndex], O_WRONLY | O_CREAT, S_IRUSR | S_IWUSR);
+                output = dup(1);
+                dup2(newfd, STDOUT_FILENO);
+                writeIndex = 0;
+            } */
         if (readIndex)
         {
+
             int newfd = open(inputBuffer[readIndex], O_RDONLY);
             input = dup(0);
             dup2(newfd, STDIN_FILENO);
@@ -235,10 +244,10 @@ int executeProcess(char **inputBuffer, char **commandBuffer)
         }
 
         // if (execvp(inputBuffer[0], strncpy(execBuffer, &inputBuffer, sizeof(inputBuffer)-MIN(readIndex, writeIndex)-1)) < 0)
-        /*     if (execvp(commandBuffer[0], commandBuffer) < 0 && strcmp(inputBuffer[0], "cd") != 0)
-            {
-                printf("\nUnable to execute :");
-            } */
+        if (execvp(commandBuffer[0], commandBuffer) < 0 && strcmp(inputBuffer[0], "cd") != 0)
+        {
+            printf("\nUnable to execute :");
+        }
         // stdout and stdin back to console
         dup2(output, 1);
         close(output);
@@ -255,37 +264,41 @@ int executeProcess(char **inputBuffer, char **commandBuffer)
         {
             insertNode(commandBuffer[0], pid);
         }
-        // Dette funker ikke for cd, se nærmere på det
-        // legge inn først sjekk etter & og terminere etter den funksjonaliteten dersom det finnes
-        wait(&status);
-        /*/stdout and stdin back to console
-        dup2(output, 1);
-        close(output);
-        close(inputBuffer[writeIndex]);
-        dup2(input, 1);
-        close(input);
-        close(inputBuffer[readIndex]);*/
-        if (WIFEXITED(status))
+        else
         {
-            int exitStatus = WEXITSTATUS(status);
+            // Dette funker ikke for cd, se nærmere på det
+            // legge inn først sjekk etter & og terminere etter den funksjonaliteten dersom det finnes
+            wait(&status);
 
-            for (int i = 0; i < MAXLIST; i++)
+            /*/stdout and stdin back to console
+            dup2(output, 1);
+            close(output);
+            close(inputBuffer[writeIndex]);
+            dup2(input, 1);
+            close(input);
+            close(inputBuffer[readIndex]);*/
+            if (WIFEXITED(status))
             {
-                if (!inputBuffer[i])
-                {
-                    break;
-                }
-                strcat(finalStr, inputBuffer[i]);
-                strcat(finalStr, " ");
-            }
-            printf("\n %s", finalStr);
-            printf("\n Exit status [ %s] = %d \n", finalStr, exitStatus);
-        }
-        else if (WIFSIGNALED(status))
-            psignal(WTERMSIG(status), "Exit signal");
+                int exitStatus = WEXITSTATUS(status);
 
-        // wait(status); // Equivalent to waitPid(-1, &status, 0)
-        return 1;
+                for (int i = 0; i < MAXLIST; i++)
+                {
+                    if (!inputBuffer[i])
+                    {
+                        break;
+                    }
+                    strcat(finalStr, inputBuffer[i]);
+                    strcat(finalStr, " ");
+                }
+                printf("\n %s", finalStr);
+                printf("\n Exit status [ %s] = %d \n", finalStr, exitStatus);
+            }
+            else if (WIFSIGNALED(status))
+                psignal(WTERMSIG(status), "Exit signal");
+
+            // wait(status); // Equivalent to waitPid(-1, &status, 0)
+            return 1;
+        }
     }
 }
 
@@ -315,7 +328,8 @@ int main()
                            inputBuffer);
         findCommand(inputBuffer, commandBuffer);
         executeProcess(inputBuffer, commandBuffer);
-        // removeZombies();
+        removeZombies();
+        //  bg = 0;
 
         /*/stdout and stdin back to console
         dup2(output, 1);
