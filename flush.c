@@ -213,7 +213,7 @@ int executeProcess(char **inputBuffer, char **commandBuffer)
 
     if (pid == -1)
     {
-        // printf("\n Unable to fork");
+        printf("\n Unable to fork");
         return 0;
     }
     else if (pid == 0)
@@ -236,7 +236,6 @@ int executeProcess(char **inputBuffer, char **commandBuffer)
         }
         if (!strcmp(inputBuffer[0], "jobs"))
         {
-
             printRunning();
         }
         else
@@ -254,7 +253,6 @@ int executeProcess(char **inputBuffer, char **commandBuffer)
     }
     else
     {
-        printf("%d \n", bg);
         if (bg)
         {
             insertNode(*inputBuffer, pid);
@@ -324,7 +322,7 @@ int main()
         findCommand(inputBuffer, commandBuffer);
         executeProcess(inputBuffer, commandBuffer);
         removeZombies();
-        //  bg = 0;
+        //   bg = 0;
 
         /*/stdout and stdin back to console
         dup2(output, 1);
