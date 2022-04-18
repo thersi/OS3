@@ -114,7 +114,7 @@ int activeDirectory()
 int parsePipe(char *str, char **strpiped)
 {
     int i;
-    for (i = 0; i < 2; i++)
+    for (i = 0; i < 3; i++)
     {
         strpiped[i] = strsep(&str, "|");
         if (strpiped[i] == NULL)
@@ -344,8 +344,8 @@ int executeProcess(char **inputBuffer, char **commandBuffer)
 void execArgsPiped(char **parsed, char **parsedpipe)
 {
     // 0 is read end, 1 is write end
-    int pipefd[2];
-    pid_t p1, p2;
+    int pipefd[3];
+    pid_t p1, p2, p3;
 
     if (pipe(pipefd) < 0)
     {
@@ -361,6 +361,7 @@ void execArgsPiped(char **parsed, char **parsedpipe)
 
     if (p1 == 0)
     {
+
         // Child 1 executing..
         // It only needs to write at the write end
         close(pipefd[0]);
@@ -388,9 +389,13 @@ void execArgsPiped(char **parsed, char **parsedpipe)
         // It only needs to read at the read end
         if (p2 == 0)
         {
+
             close(pipefd[1]);
             dup2(pipefd[0], STDIN_FILENO);
             close(pipefd[0]);
+            close(pipefd[1]);
+            dup2(pipefd[2], STDOUT_FILENO);
+            close(pipefd[2]);
 
             /*  if (readIndex)
              {
@@ -408,9 +413,51 @@ void execArgsPiped(char **parsed, char **parsedpipe)
         }
         else
         {
-            // parent executing, waiting for two children
-            wait(NULL);
-            wait(NULL);
+            // Parent executing
+            p3 = fork();
+
+            if (p3 < 0)
+            {
+                printf("\nCould not fork");
+                return;
+            }
+
+            // Child 2 executing..
+            // It only needs to read at the read end
+            if (p3 == 0)
+            {
+
+                close(pipefd[2]);
+                dup2(pipefd[1], STDIN_FILENO);
+                close(pipefd[1]);
+
+                /*  if (readIndex)
+                 {
+
+                     int newfd = open(parsedpipe[readIndex], O_RDONLY);
+                     input = dup(0);
+                     dup2(newfd, STDIN_FILENO);
+                     readIndex = 0;
+                 } */
+                if (execvp(parsedpipe[1], parsedpipe) < 0)
+                {
+                    printf("\nCould not execute command 2..");
+                    exit(0);
+                }
+            }
+
+            /*  else
+             {
+                 // parent executing, waiting for two children
+                 wait(NULL);
+                 wait(NULL);
+             } */
+            else
+            {
+                // parent executing, waiting for two children
+                wait(NULL);
+                wait(NULL);
+            }
         }
     }
 }
