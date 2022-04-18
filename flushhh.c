@@ -96,7 +96,7 @@ void execArgs(char **parsed)
 }
 
 // Function where the piped system commands is executed
-void execArgsPiped(char **parsed, char **parsedpipe)
+void executePipes(char **parsed, char **parsedpipe)
 {
     // 0 is read end, 1 is write end
     int pipefd[2];
@@ -225,7 +225,7 @@ int ownCmdHandler(char **parsed)
 }
 
 // function for finding pipe
-int parsePipe(char *str, char **strpiped)
+int pipeParser(char *str, char **strpiped)
 {
     int i;
     for (i = 0; i < 2; i++)
@@ -244,7 +244,7 @@ int parsePipe(char *str, char **strpiped)
 }
 
 // function for parsing command words
-void parseSpace(char *str, char **parsed)
+void parseCmd(char *str, char **parsed)
 {
     int i;
 
@@ -265,17 +265,17 @@ int processString(char *str, char **parsed, char **parsedpipe)
     char *strpiped[2];
     int piped = 0;
 
-    piped = parsePipe(str, strpiped);
+    piped = pipeParser(str, strpiped);
 
     if (piped)
     {
-        parseSpace(strpiped[0], parsed);
-        parseSpace(strpiped[1], parsedpipe);
+        parseCmd(strpiped[0], parsed);
+        parseCmd(strpiped[1], parsedpipe);
     }
     else
     {
 
-        parseSpace(str, parsed);
+        parseCmd(str, parsed);
     }
 
     if (ownCmdHandler(parsed))
@@ -311,7 +311,7 @@ int main()
             execArgs(parsedArgs);
 
         if (execFlag == 2)
-            execArgsPiped(parsedArgs, parsedArgsPiped);
+            executePipes(parsedArgs, parsedArgsPiped);
     }
     return 0;
 }

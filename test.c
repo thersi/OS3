@@ -34,7 +34,7 @@ void printDir()
     printf(" %s", cwd);
 }
 // function for parsing command words
-void parseSpace(char *str, char **parsed)
+void parseCmd(char *str, char **parsed)
 {
     int i;
 
@@ -50,25 +50,25 @@ void parseSpace(char *str, char **parsed)
 }
 int processString(char *str, char **parsed)
 {
-    parseSpace(str, parsed);
-    //printf("%c", **parsed);
+    parseCmd(str, parsed);
+    // printf("%c", **parsed);
     printf("yo\n");
     return 1;
     /*
     char *strpiped[2];
     int piped = 0;
 
-    piped = parsePipe(str, strpiped);
+    piped = pipeParser(str, strpiped);
 
     if (piped)
     {
-        parseSpace(strpiped[0], parsed);
-        parseSpace(strpiped[1], parsedpipe);
+        parseCmd(strpiped[0], parsed);
+        parseCmd(strpiped[1], parsedpipe);
     }
     else
     {
 
-        parseSpace(str, parsed);
+        parseCmd(str, parsed);
     }
 
     if (ownCmdHandler(parsed))
@@ -107,7 +107,7 @@ int main()
     char inputString[MAXCOM], *parsedArgs[MAXLIST];
     char *parsedArgsPiped[MAXLIST];
     int execFlag = 0;
-    //init_shell();
+    // init_shell();
 
     while (1)
     {

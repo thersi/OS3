@@ -199,13 +199,13 @@ int executeProcess(char **inputBuffer, char **commandBuffer)
     else if (pid == 0) // child pid
     {
 
-        if (writeIndex) // For writitng to file
-        {
-            int newfd = open(inputBuffer[writeIndex], O_WRONLY | O_CREAT, S_IRUSR | S_IWUSR);
-            output = dup(1);
-            dup2(newfd, STDOUT_FILENO);
-            writeIndex = 0;
-        }
+        /*  if (writeIndex) // For writitng to file
+         {
+             int newfd = open(inputBuffer[writeIndex], O_WRONLY | O_CREAT, S_IRUSR | S_IWUSR);
+             output = dup(1);
+             dup2(newfd, STDOUT_FILENO);
+             writeIndex = 0;
+         } */
         if (readIndex) // For reading to file
         {
 
@@ -288,9 +288,9 @@ void executePipes(char **commandBuffer, char **pipeBuffer)
     {
 
         // Child 1 executes
-        close(pfd[0]);
-        dup2(pfd[1], STDOUT_FILENO);
         close(pfd[1]);
+        dup2(pfd[2], STDOUT_FILENO);
+        close(pfd[2]);
 
         if (execvp(commandBuffer[0], commandBuffer) < 0)
         {
