@@ -19,6 +19,7 @@ int writeIndex = 0;
 int output = 1;
 int input = 0;
 int bg = 0;
+char *firstPipe[MAXLIST], *secPipe[MAXLIST];
 
 /* Takes in user input and moves to buffer */
 int checkInput(char *inputString)
@@ -95,7 +96,7 @@ int parseString(char *inputString, char **inputBuffer, char **inputpipe)
 
     int i;
 
-    char *pipedString[2];
+    char *pipedString[3];
     int pipe = 0;
 
     pipe = pipeParser(inputString, pipedString); // Calls pipeParser function to find if there are any pipes
@@ -103,10 +104,10 @@ int parseString(char *inputString, char **inputBuffer, char **inputpipe)
     if (pipe)
     {
         parseCmd(pipedString[0], inputBuffer);
-        parseCmd(pipedString[1], inputpipe);
+        parseCmd(pipedString[1], firstPipe);
         if (pipe == 2) // In case of 2 pipes:
         {
-            parseCmd(pipedString[2], inputpipe);
+            parseCmd(pipedString[2], secPipe);
         }
         return 2;
     }
@@ -272,10 +273,16 @@ int executeProcess(char **inputBuffer, char **commandBuffer)
 void executePipes(char **commandBuffer, char **pipeBuffer)
 {
     // 0 is read end, 1 is write end
-    int pfd[2];
-    pid_t pid1, pid2;
+    int pfd1[2];
+    int pfd2[2];
+    pid_t pid1, pid2, pid3;
 
-    if (pipe(pfd) < 0) // Checks if pipe initialization is true
+    if (pipe(pfd1) < 0) // Checks if pipe initialization is true
+    {
+        printf("\n Initialization of pipe failed");
+        return;
+    }
+    if (pipe(pfd2) < 0) // Checks if pipe initialization is true
     {
         printf("\n Initialization of pipe failed");
         return;
@@ -292,9 +299,9 @@ void executePipes(char **commandBuffer, char **pipeBuffer)
         char *buf[3];
 
         // Child 1 executes
-        close(pfd[0]);
-        dup2(pfd[1], STDOUT_FILENO);
-        close(pfd[1]);
+        close(pfd1[0]);
+        dup2(pfd1[1], STDOUT_FILENO);
+        close(pfd1[1]);
 
         if (writeIndex) // For writitng to file
         {
@@ -320,6 +327,7 @@ void executePipes(char **commandBuffer, char **pipeBuffer)
     }
     else
     {
+        wait(NULL);
         // Parent executes
         pid2 = fork();
 
@@ -331,10 +339,13 @@ void executePipes(char **commandBuffer, char **pipeBuffer)
 
         if (pid2 == 0)
         {
+            close(pfd2[0]);
+            dup2(pfd2[1], STDOUT_FILENO);
+            close(pfd2[1]);
 
-            close(pfd[1]);
-            dup2(pfd[0], STDIN_FILENO);
-            close(pfd[0]);
+            close(pfd1[1]);
+            dup2(pfd1[0], STDIN_FILENO);
+            close(pfd1[0]);
             if (writeIndex) // For writitng to file
             {
                 int newfd = open(commandBuffer[writeIndex], O_WRONLY | O_CREAT, S_IRUSR | S_IWUSR);
@@ -351,18 +362,60 @@ void executePipes(char **commandBuffer, char **pipeBuffer)
                 readIndex = 0;
             }
 
-            if (execvp(pipeBuffer[0], pipeBuffer) < 0)
+            if (execvp(firstPipe[0], firstPipe) < 0)
             {
-                printf("\nUnable to execute first command");
+                printf("\nUnable to execute second command");
                 exit(0);
             }
         }
 
         else
         {
-            // parent executes and wait for children
             wait(NULL);
-            wait(NULL);
+            // Parent executes
+            pid3 = fork();
+
+            if (pid3 < 0)
+            {
+                printf("\nUnable to fork");
+                return;
+            }
+
+            if (pid3 == 0)
+            {
+
+                close(pfd2[1]);
+                dup2(pfd2[0], STDIN_FILENO);
+                close(pfd2[0]);
+                if (writeIndex) // For writitng to file
+                {
+                    int newfd = open(commandBuffer[writeIndex], O_WRONLY | O_CREAT, S_IRUSR | S_IWUSR);
+                    output = dup(1);
+                    dup2(newfd, STDOUT_FILENO);
+                    writeIndex = 0;
+                }
+                if (readIndex) // For reading to file
+                {
+
+                    int newfd = open(commandBuffer[readIndex], O_RDONLY);
+                    input = dup(0);
+                    dup2(newfd, STDIN_FILENO);
+                    readIndex = 0;
+                }
+
+                if (execvp(secPipe[0], secPipe) < 0)
+                {
+                    printf("\nUnable to execute third command");
+                    exit(0);
+                }
+                else
+                {
+                    // parent executes and wait for children
+                    wait(NULL);
+                    //wait(NULL);
+                    //wait(NULL);
+                }
+            }
         }
     }
 }
