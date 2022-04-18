@@ -349,7 +349,6 @@ int executeProcess(char **inputBuffer, char **commandBuffer)
 void execArgsPiped(char **parsed, char **parsedpipe)
 {
     // 0 is read end, 1 is write end
-    char *commandBuffer[MAXLIST];
     int pipefd[3];
     pid_t p1, p2, p3;
 
@@ -373,9 +372,8 @@ void execArgsPiped(char **parsed, char **parsedpipe)
         close(pipefd[0]);
         dup2(pipefd[1], STDOUT_FILENO);
         close(pipefd[1]);
-        findCommand(parsed,commandBuffer);
 
-        if (execvp(parsed[0], commandBuffer) < 0)
+        if (execvp(parsed[0], parsed) < 0)
         {
             printf("\nCould not execute command 1..");
             exit(0);
@@ -404,8 +402,6 @@ void execArgsPiped(char **parsed, char **parsedpipe)
             dup2(pipefd[2], STDOUT_FILENO);
             close(pipefd[2]);
 
-            findCommand(parsedpipe, commandBuffer);
-
             /*  if (readIndex)
              {
 
@@ -414,7 +410,7 @@ void execArgsPiped(char **parsed, char **parsedpipe)
                  dup2(newfd, STDIN_FILENO);
                  readIndex = 0;
              } */
-            if (execvp(parsedpipe[0], commandBuffer) < 0)
+            if (execvp(parsedpipe[0], parsedpipe) < 0)
             {
                 printf("\nCould not execute command 2..");
                 exit(0);
@@ -440,8 +436,6 @@ void execArgsPiped(char **parsed, char **parsedpipe)
                 dup2(pipefd[1], STDIN_FILENO);
                 close(pipefd[1]);
 
-                findCommand(parsedpipe, commandBuffer);
-
                 /*  if (readIndex)
                  {
 
@@ -451,7 +445,7 @@ void execArgsPiped(char **parsed, char **parsedpipe)
                      readIndex = 0;
                  } */
                 printf("parsedpipe[1]: %s\n", parsedpipe[1]);
-                if (execvp(parsedpipe[0], commandBuffer) < 0)
+                if (execvp(parsedpipe[0], parsedpipe) < 0)
                 {
                     printf("\nCould not execute command 3..");
                     exit(0);
