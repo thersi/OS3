@@ -164,16 +164,19 @@ void findCommand(char **inputBuffer, char **commandBuffer)
         if (!strcmp(inputBuffer[i], "<"))
         {
             commandBuffer[i] = NULL;
+            readIndex = i + 1;
             break;
         }
         if (!strcmp(inputBuffer[i], ">"))
         {
             commandBuffer[i] = NULL;
+            writeIndex = i + 1;
             break;
         }
         if (!strcmp(inputBuffer[i], "&"))
         {
             commandBuffer[i] = NULL;
+            bg = 1;
             break;
         }
 
