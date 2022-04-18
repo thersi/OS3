@@ -128,6 +128,21 @@ int parsePipe(char *str, char **strpiped)
         return 1;
     }
 }
+// function for parsing command words
+void parseSpace(char *str, char **parsed)
+{
+    int i;
+
+    for (i = 0; i < MAXLIST; i++)
+    {
+        parsed[i] = strsep(&str, " ");
+
+        if (parsed[i] == NULL)
+            break;
+        if (strlen(parsed[i]) == 0)
+            i--;
+    }
+}
 
 int parseString(char *inputString, char **inputBuffer, char **inputpipe)
 {
@@ -145,6 +160,7 @@ int parseString(char *inputString, char **inputBuffer, char **inputpipe)
     {
         parseSpace(strpiped[0], inputBuffer);
         parseSpace(strpiped[1], inputpipe);
+        return 2;
     }
 
     for (i = 0; i < MAXLIST; i++)
@@ -215,8 +231,7 @@ void findCommand(char **inputBuffer, char **commandBuffer)
         commandBuffer[i] = inputBuffer[i];
     }
 }
-
-int executeProcess(char **inputBuffer, char **commandBuffer, char **inputPipes)
+int executeProcess(char **inputBuffer, char **commandBuffer)
 {
 
     /*for (int i = 0; i < MAXLIST; i++)
@@ -225,7 +240,6 @@ int executeProcess(char **inputBuffer, char **commandBuffer, char **inputPipes)
             break;
         printf("commandbuffr: %s\n", commandBuffer[i]);
         printf("inputbuffr: %s\n", inputBuffer[i]);
-
     }*/
 
     // Forking a child
@@ -236,14 +250,8 @@ int executeProcess(char **inputBuffer, char **commandBuffer, char **inputPipes)
         } */
     int status;
     pid_t pid = fork();
-    int pipefd[2];
     char finalString[512] = "";
     char *finalStr = finalString;
-    if (pipe(pipefd) < 0)
-    {
-        printf("\nPipe could not be initialized");
-        return 0;
-    }
     if (!strcmp(inputBuffer[0], "cd")) // Fant ut av at denne ikke trenger være child process Ctrl d
     {
         chdir(inputBuffer[1]);
@@ -264,9 +272,6 @@ int executeProcess(char **inputBuffer, char **commandBuffer, char **inputPipes)
                 dup2(newfd, STDOUT_FILENO);
                 writeIndex = 0;
             } */
-        close(pipefd[0]);
-        dup2(pipefd[1], STDOUT_FILENO);
-        close(pipefd[1]);
         if (readIndex)
         {
 
@@ -294,10 +299,86 @@ int executeProcess(char **inputBuffer, char **commandBuffer, char **inputPipes)
     }
     else
     {
-        // Parent executing
-        pid_t pid2 = fork();
+        if (bg)
+        {
+            insertNode(*inputBuffer, pid);
+            return 0;
+        }
 
-        if (pid2 < 0)
+        // Dette funker ikke for cd, se nærmere på det
+        // legge inn først sjekk etter & og terminere etter den funksjonaliteten dersom det finnes
+        waitpid(pid, &status, 0);
+
+        /*/stdout and stdin back to console
+        dup2(output, 1);
+        close(output);
+        close(inputBuffer[writeIndex]);
+        dup2(input, 1);
+        close(input);
+        close(inputBuffer[readIndex]);*/
+        if (WIFEXITED(status))
+        {
+            int exitStatus = WEXITSTATUS(status);
+
+            for (int i = 0; i < MAXLIST; i++)
+            {
+                if (!inputBuffer[i])
+                {
+                    break;
+                }
+                strcat(finalStr, inputBuffer[i]);
+                strcat(finalStr, " ");
+            }
+            printf("\n %s", finalStr);
+            printf("\n Exit status [ %s] = %d \n", finalStr, exitStatus);
+        }
+        else if (WIFSIGNALED(status))
+            psignal(WTERMSIG(status), "Exit signal");
+
+        // wait(status); // Equivalent to waitPid(-1, &status, 0)
+        return 1;
+    }
+}
+
+// Function where the piped system commands is executed
+void execArgsPiped(char **parsed, char **parsedpipe)
+{
+    // 0 is read end, 1 is write end
+    int pipefd[2];
+    pid_t p1, p2;
+
+    if (pipe(pipefd) < 0)
+    {
+        printf("\nPipe could not be initialized");
+        return;
+    }
+    p1 = fork();
+    if (p1 < 0)
+    {
+        printf("\nCould not fork");
+        return;
+    }
+
+    if (p1 == 0)
+    {
+        // Child 1 executing..
+        // It only needs to write at the write end
+        close(pipefd[0]);
+        dup2(pipefd[1], STDOUT_FILENO);
+        close(pipefd[1]);
+
+        if (execvp(parsed[0], parsed) < 0)
+        {
+            printf("\nCould not execute command 1..");
+            exit(0);
+        }
+    }
+    else
+    {
+        // Parent executing
+        p2 = fork();
+
+        if (p2 < 0)
         {
             printf("\nCould not fork");
             return;
@@ -305,12 +386,21 @@ int executeProcess(char **inputBuffer, char **commandBuffer, char **inputPipes)
 
         // Child 2 executing..
         // It only needs to read at the read end
-        if (pid2 == 0)
+        if (p2 == 0)
         {
             close(pipefd[1]);
             dup2(pipefd[0], STDIN_FILENO);
             close(pipefd[0]);
-            if (execvp(inputPipes[0], inputPipes) < 0)
+
+            /*  if (readIndex)
+             {
+
+                 int newfd = open(parsedpipe[readIndex], O_RDONLY);
+                 input = dup(0);
+                 dup2(newfd, STDIN_FILENO);
+                 readIndex = 0;
+             } */
+            if (execvp(parsedpipe[0], parsedpipe) < 0)
             {
                 printf("\nCould not execute command 2..");
                 exit(0);
@@ -318,82 +408,54 @@ int executeProcess(char **inputBuffer, char **commandBuffer, char **inputPipes)
         }
         else
         {
-            if (bg)
-            {
-                insertNode(*inputBuffer, pid);
-                return 0;
-            }
-
-            // Dette funker ikke for cd, se nærmere på det
-            // legge inn først sjekk etter & og terminere etter den funksjonaliteten dersom det finnes
-            waitpid(pid, &status, 0);
-
-            /*/stdout and stdin back to console
-            dup2(output, 1);
-            close(output);
-            close(inputBuffer[writeIndex]);
-            dup2(input, 1);
-            close(input);
-            close(inputBuffer[readIndex]);*/
-            if (WIFEXITED(status))
-            {
-                int exitStatus = WEXITSTATUS(status);
-
-                for (int i = 0; i < MAXLIST; i++)
-                {
-                    if (!inputBuffer[i])
-                    {
-                        break;
-                    }
-                    strcat(finalStr, inputBuffer[i]);
-                    strcat(finalStr, " ");
-                }
-                printf("\n %s", finalStr);
-                printf("\n Exit status [ %s] = %d \n", finalStr, exitStatus);
-            }
-            else if (WIFSIGNALED(status))
-                psignal(WTERMSIG(status), "Exit signal");
-
-            // wait(status); // Equivalent to waitPid(-1, &status, 0)
-            return 1;
+            // parent executing, waiting for two children
+            wait(NULL);
+            wait(NULL);
         }
     }
+}
 
-    int main()
+int main()
+{
+    char inputString[MAXCOM], *inputBuffer[MAXLIST], *commandBuffer[MAXLIST];
+    char *inputPipes[MAXLIST];
+    int flag = 0;
+    // init_shell();
+    // char *currentline[MAXLIST];
+
+    // char *readfrom = readToBuffer("textfile.txt");
+    // writeToFile(( char ** )readfrom, "writefile.txt");
+
+    while (1)
     {
-        char inputString[MAXCOM], *inputBuffer[MAXLIST], *commandBuffer[MAXLIST];
-        char *inputPipes[MAXLIST];
-        int flag = 0;
-        // init_shell();
-        // char *currentline[MAXLIST];
+        bg = 0;
+        // printRunning();
+        //  print shell line
+        activeDirectory();
+        // take input
+        if (checkInput(inputString))
+            continue;
 
-        // char *readfrom = readToBuffer("textfile.txt");
-        // writeToFile(( char ** )readfrom, "writefile.txt");
+        // process
+        flag = parseString(inputString, inputBuffer, inputPipes);
+        findCommand(inputBuffer, commandBuffer);
 
-        while (1)
-        {
-            bg = 0;
-            // printRunning();
-            //  print shell line
-            activeDirectory();
-            // take input
-            if (checkInput(inputString))
-                continue;
+        printf("%d \n", flag); // kommer hit
+        if (flag == 1)
+            executeProcess(inputBuffer, commandBuffer);
+        ;
+        if (flag == 2)
+            execArgsPiped(commandBuffer, inputPipes); // noe feiler her
+        removeZombies();
+        //    bg = 0;
 
-            // process
-            flag = parseString(inputString, inputBuffer, inputPipes);
-            findCommand(inputBuffer, commandBuffer);
-            executeProcess(inputBuffer, commandBuffer, inputPipes);
-            removeZombies();
-            //    bg = 0;
-
-            /*/stdout and stdin back to console
-            dup2(output, 1);
-            close(output);
-            close(inputBuffer[writeIndex]);
-            dup2(input, 1);
-            close(input);
-            close(inputBuffer[readIndex]);*/
-        }
-        return 0;
+        /*/stdout and stdin back to console
+        dup2(output, 1);
+        close(output);
+        close(inputBuffer[writeIndex]);
+        dup2(input, 1);
+        close(input);
+        close(inputBuffer[readIndex]);*/
     }
+    return 0;
+}
