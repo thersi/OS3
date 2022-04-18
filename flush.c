@@ -110,13 +110,42 @@ int activeDirectory()
     printf(" %s: ", pathBuffer);
     return 1;
 }
+// function for finding pipe
+int parsePipe(char *str, char **strpiped)
+{
+    int i;
+    for (i = 0; i < 2; i++)
+    {
+        strpiped[i] = strsep(&str, "|");
+        if (strpiped[i] == NULL)
+            break;
+    }
 
-int parseString(char *inputString, char **inputBuffer)
+    if (strpiped[1] == NULL)
+        return 0; // returns zero if no pipe is found.
+    else
+    {
+        return 1;
+    }
+}
+
+int parseString(char *inputString, char **inputBuffer, char **inputpipe)
 {
     output = dup(1);
     input = dup(0);
 
     int i;
+
+    char *strpiped[2];
+    int piped = 0;
+
+    piped = parsePipe(inputString, strpiped);
+
+    if (piped)
+    {
+        parseSpace(strpiped[0], inputBuffer);
+        parseSpace(strpiped[1], inputpipe);
+    }
 
     for (i = 0; i < MAXLIST; i++)
     {
@@ -187,7 +216,7 @@ void findCommand(char **inputBuffer, char **commandBuffer)
     }
 }
 
-int executeProcess(char **inputBuffer, char **commandBuffer)
+int executeProcess(char **inputBuffer, char **commandBuffer, char **inputPipes)
 {
 
     /*for (int i = 0; i < MAXLIST; i++)
@@ -207,8 +236,14 @@ int executeProcess(char **inputBuffer, char **commandBuffer)
         } */
     int status;
     pid_t pid = fork();
+    int pipefd[2];
     char finalString[512] = "";
     char *finalStr = finalString;
+    if (pipe(pipefd) < 0)
+    {
+        printf("\nPipe could not be initialized");
+        return 0;
+    }
     if (!strcmp(inputBuffer[0], "cd")) // Fant ut av at denne ikke trenger være child process Ctrl d
     {
         chdir(inputBuffer[1]);
@@ -229,6 +264,9 @@ int executeProcess(char **inputBuffer, char **commandBuffer)
                 dup2(newfd, STDOUT_FILENO);
                 writeIndex = 0;
             } */
+        close(pipefd[0]);
+        dup2(pipefd[1], STDOUT_FILENO);
+        close(pipefd[1]);
         if (readIndex)
         {
 
@@ -256,84 +294,106 @@ int executeProcess(char **inputBuffer, char **commandBuffer)
     }
     else
     {
-        if (bg)
+        // Parent executing
+        pid_t pid2 = fork();
+
+        if (pid2 < 0)
         {
-            insertNode(*inputBuffer, pid);
-            return 0;
+            printf("\nCould not fork");
+            return;
         }
 
-        // Dette funker ikke for cd, se nærmere på det
-        // legge inn først sjekk etter & og terminere etter den funksjonaliteten dersom det finnes
-        waitpid(pid, &status, 0);
-
-        /*/stdout and stdin back to console
-        dup2(output, 1);
-        close(output);
-        close(inputBuffer[writeIndex]);
-        dup2(input, 1);
-        close(input);
-        close(inputBuffer[readIndex]);*/
-        if (WIFEXITED(status))
+        // Child 2 executing..
+        // It only needs to read at the read end
+        if (pid2 == 0)
         {
-            int exitStatus = WEXITSTATUS(status);
-
-            for (int i = 0; i < MAXLIST; i++)
+            close(pipefd[1]);
+            dup2(pipefd[0], STDIN_FILENO);
+            close(pipefd[0]);
+            if (execvp(inputPipes[0], inputPipes) < 0)
             {
-                if (!inputBuffer[i])
-                {
-                    break;
-                }
-                strcat(finalStr, inputBuffer[i]);
-                strcat(finalStr, " ");
+                printf("\nCould not execute command 2..");
+                exit(0);
             }
-            printf("\n %s", finalStr);
-            printf("\n Exit status [ %s] = %d \n", finalStr, exitStatus);
         }
-        else if (WIFSIGNALED(status))
-            psignal(WTERMSIG(status), "Exit signal");
+        else
+        {
+            if (bg)
+            {
+                insertNode(*inputBuffer, pid);
+                return 0;
+            }
 
-        // wait(status); // Equivalent to waitPid(-1, &status, 0)
-        return 1;
+            // Dette funker ikke for cd, se nærmere på det
+            // legge inn først sjekk etter & og terminere etter den funksjonaliteten dersom det finnes
+            waitpid(pid, &status, 0);
+
+            /*/stdout and stdin back to console
+            dup2(output, 1);
+            close(output);
+            close(inputBuffer[writeIndex]);
+            dup2(input, 1);
+            close(input);
+            close(inputBuffer[readIndex]);*/
+            if (WIFEXITED(status))
+            {
+                int exitStatus = WEXITSTATUS(status);
+
+                for (int i = 0; i < MAXLIST; i++)
+                {
+                    if (!inputBuffer[i])
+                    {
+                        break;
+                    }
+                    strcat(finalStr, inputBuffer[i]);
+                    strcat(finalStr, " ");
+                }
+                printf("\n %s", finalStr);
+                printf("\n Exit status [ %s] = %d \n", finalStr, exitStatus);
+            }
+            else if (WIFSIGNALED(status))
+                psignal(WTERMSIG(status), "Exit signal");
+
+            // wait(status); // Equivalent to waitPid(-1, &status, 0)
+            return 1;
+        }
     }
-}
 
-int main()
-{
-
-    char inputString[MAXCOM], *inputBuffer[MAXLIST], *commandBuffer[MAXLIST];
-    char *parsedArgsPiped[MAXLIST];
-    int flag = 0;
-    // init_shell();
-    // char *currentline[MAXLIST];
-
-    // char *readfrom = readToBuffer("textfile.txt");
-    // writeToFile(( char ** )readfrom, "writefile.txt");
-
-    while (1)
+    int main()
     {
-        bg = 0;
-        // printRunning();
-        //  print shell line
-        activeDirectory();
-        // take input
-        if (checkInput(inputString))
-            continue;
+        char inputString[MAXCOM], *inputBuffer[MAXLIST], *commandBuffer[MAXLIST];
+        char *inputPipes[MAXLIST];
+        int flag = 0;
+        // init_shell();
+        // char *currentline[MAXLIST];
 
-        // process
-        flag = parseString(inputString,
-                           inputBuffer);
-        findCommand(inputBuffer, commandBuffer);
-        executeProcess(inputBuffer, commandBuffer);
-        removeZombies();
-        //    bg = 0;
+        // char *readfrom = readToBuffer("textfile.txt");
+        // writeToFile(( char ** )readfrom, "writefile.txt");
 
-        /*/stdout and stdin back to console
-        dup2(output, 1);
-        close(output);
-        close(inputBuffer[writeIndex]);
-        dup2(input, 1);
-        close(input);
-        close(inputBuffer[readIndex]);*/
+        while (1)
+        {
+            bg = 0;
+            // printRunning();
+            //  print shell line
+            activeDirectory();
+            // take input
+            if (checkInput(inputString))
+                continue;
+
+            // process
+            flag = parseString(inputString, inputBuffer, inputPipes);
+            findCommand(inputBuffer, commandBuffer);
+            executeProcess(inputBuffer, commandBuffer, inputPipes);
+            removeZombies();
+            //    bg = 0;
+
+            /*/stdout and stdin back to console
+            dup2(output, 1);
+            close(output);
+            close(inputBuffer[writeIndex]);
+            dup2(input, 1);
+            close(input);
+            close(inputBuffer[readIndex]);*/
+        }
+        return 0;
     }
-    return 0;
-}
