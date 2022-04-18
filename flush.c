@@ -19,76 +19,18 @@ int writeIndex = 0;
 int output = 1;
 int input = 0;
 int bg = 0;
-/*
-// not necessary
-char *
-readToBuffer(const char *filename)
-{
-    FILE *file = fopen(filename, "r");
-    char *readBuffer[1000];
-    char *currentline[1000];
 
-    assert(file != NULL);
-
-    while (fgets((char *)currentline, sizeof(currentline), file) != NULL)
-    {
-        strcat((char *)readBuffer, (char *)currentline);
-        // fprintf(stderr, "got line: %s\n", currentline);
-    }
-    printf("read: %s\n", (char *)readBuffer);
-
-    fclose(file);
-
-    char *str = (char *)readBuffer;
-
-    return str;
-} */
-/*
-// not necessary in finished shell
-void readFromFileToFile(char *readfile, char *writefile)
-{
-    FILE *file = fopen(readfile, "r");
-
-    char currentline[1000];
-
-    assert(file != NULL);
-
-    FILE *write = fopen(writefile, "w");
-    rewind(write);
-
-    while (fgets(currentline, sizeof(currentline), file) != NULL)
-    {
-        fprintf(write, "%s\n", (char *)&currentline);
-    }
-
-    fclose(file);
-    fclose(write);
-}
-
-// not necessary
-void *writeToFile(char **readfrom, char *writefile)
-{
-    assert(readfrom != NULL);
-    printf("Nå skrives det greier");
-
-    FILE *write = fopen(writefile, "w");
-    rewind(write);
-    fprintf(write, "%s\n", (char *)readfrom);
-    fclose(write);
-} */
-
-int checkInput(char *inputString) // Kan gjøre dette på en annen måte?
+/* Takes in user input and moves to buffer */
+int checkInput(char *inputString)
 {
     char *stringBuffer;
     stringBuffer = fgets(inputString, MAXLIST, stdin);
     if (stringBuffer == NULL) // Checks if null which is the case for ctrl-d, then exits
     {
-        exit(EXIT_FAILURE); // SKal dette være exit kode 1 eller 0?
+        exit(EXIT_FAILURE);
     }
 
-    stringBuffer[strlen(stringBuffer) - 1] = '\0';
-
-    // fflush(stdin);
+    stringBuffer[strlen(stringBuffer) - 1] = '\0'; // Removes whitespace
 
     if (strlen(stringBuffer) > 0)
 
@@ -99,49 +41,49 @@ int checkInput(char *inputString) // Kan gjøre dette på en annen måte?
     return 1;
 }
 
-int activeDirectory()
+int activeDirectory() // Find current active directory
 {
     char pathBuffer[1024];
     if (getcwd(pathBuffer, sizeof(pathBuffer)) == NULL)
     {
         perror("Error when calling getcwd()");
         return 0;
-    } // Gets the path name of the working directory
-    printf(" %s: ", pathBuffer);
+    }                            // Gets the path name of the working directory
+    printf(" %s: ", pathBuffer); // Prints active directory before user input in terminal
     return 1;
 }
-// function for finding pipe
-int parsePipe(char *str, char **strpiped)
+// Finds pipe from user input
+int pipeParser(char *stringInput, char **pipedString)
 {
     int i;
     for (i = 0; i < 3; i++)
     {
-        strpiped[i] = strsep(&str, "|");
-        if (strpiped[i] == NULL)
+        pipedString[i] = strsep(&stringInput, "|");
+        if (pipedString[i] == NULL)
             break;
     }
 
-    if (strpiped[1] == NULL)
-        return 0; // returns zero if no pipe is found.
-    else if (strpiped[1] != NULL && strpiped[2] == NULL)
-        return 1; // returns zero if no pipe is found.
+    if (pipedString[1] == NULL)
+        return 0; // zero is returned in case no pipe
+    else if (pipedString[1] != NULL && pipedString[2] == NULL)
+        return 1; // Checks how many pipes are found 1 or 2
     else
     {
         return 2;
     }
 }
-// function for parsing command words
-void parseSpace(char *str, char **parsed)
+// Parses command via space
+void parseCmd(char *inputString, char **commandBuffer)
 {
     int i;
 
     for (i = 0; i < MAXLIST; i++)
     {
-        parsed[i] = strsep(&str, " ");
+        commandBuffer[i] = strsep(&inputString, " "); // Seperated via space
 
-        if (parsed[i] == NULL)
+        if (commandBuffer[i] == NULL)
             break;
-        if (strlen(parsed[i]) == 0)
+        if (strlen(commandBuffer[i]) == 0)
             i--;
     }
 }
@@ -153,17 +95,18 @@ int parseString(char *inputString, char **inputBuffer, char **inputpipe)
 
     int i;
 
-    char *strpiped[2];
-    int piped = 0;
+    char *pipedString[2];
+    int pipe = 0;
 
-    piped = parsePipe(inputString, strpiped);
+    pipe = pipeParser(inputString, pipedString); // Calls pipeParser function to find if there are any pipes
 
-    if (piped)
+    if (pipe)
     {
-        parseSpace(strpiped[0], inputBuffer);
-        parseSpace(strpiped[1], inputpipe);
-        if (piped == 2) {
-            parseSpace(strpiped[2], inputpipe);
+        parseCmd(pipedString[0], inputBuffer);
+        parseCmd(pipedString[1], inputpipe);
+        if (pipe == 2) // In case of 2 pipes:
+        {
+            parseCmd(pipedString[2], inputpipe);
         }
         return 2;
     }
@@ -179,7 +122,7 @@ int parseString(char *inputString, char **inputBuffer, char **inputpipe)
         if (strlen(inputBuffer[i]) == 0)
             i--;
 
-        // sjekker etter redirections
+        // checks for redirections
         if (!strcmp(inputBuffer[i], "<"))
         {
             // something to read from file
@@ -202,6 +145,7 @@ int parseString(char *inputString, char **inputBuffer, char **inputpipe)
     return 1;
 }
 
+// Creates a commandbuffer from inputbuffer, this ensures certaincharacters are NULL, signaling end of buffer
 void findCommand(char **inputBuffer, char **commandBuffer)
 {
     int i;
@@ -238,28 +182,13 @@ void findCommand(char **inputBuffer, char **commandBuffer)
 }
 int executeProcess(char **inputBuffer, char **commandBuffer)
 {
-
-    /*for (int i = 0; i < MAXLIST; i++)
-    {
-        if (inputBuffer[i] == NULL)
-            break;
-        printf("commandbuffr: %s\n", commandBuffer[i]);
-        printf("inputbuffr: %s\n", inputBuffer[i]);
-    }*/
-
-    // Forking a child
-    /*     int background = 0;
-        if (!strcmp(inputBuffer[strlen(*inputBuffer) - 1], "&"))
-        {
-            background = 1;
-        } */
     int status;
     pid_t pid = fork();
     char finalString[512] = "";
     char *finalStr = finalString;
-    if (!strcmp(inputBuffer[0], "cd")) // Fant ut av at denne ikke trenger være child process Ctrl d
+    if (!strcmp(inputBuffer[0], "cd")) // Compares user input to 'cd'
     {
-        chdir(inputBuffer[1]);
+        chdir(inputBuffer[1]); // cd has own command, not covered by execvp. Not required to be placed in child.
     }
 
     if (pid == -1)
@@ -267,17 +196,17 @@ int executeProcess(char **inputBuffer, char **commandBuffer)
         printf("\n Unable to fork");
         return 0;
     }
-    else if (pid == 0)
+    else if (pid == 0) // child pid
     {
 
-        /*     if (writeIndex)
-            {
-                int newfd = open(inputBuffer[writeIndex], O_WRONLY | O_CREAT, S_IRUSR | S_IWUSR);
-                output = dup(1);
-                dup2(newfd, STDOUT_FILENO);
-                writeIndex = 0;
-            } */
-        if (readIndex)
+        if (writeIndex) // For writitng to file
+        {
+            int newfd = open(inputBuffer[writeIndex], O_WRONLY | O_CREAT, S_IRUSR | S_IWUSR);
+            output = dup(1);
+            dup2(newfd, STDOUT_FILENO);
+            writeIndex = 0;
+        }
+        if (readIndex) // For reading to file
         {
 
             int newfd = open(inputBuffer[readIndex], O_RDONLY);
@@ -285,13 +214,13 @@ int executeProcess(char **inputBuffer, char **commandBuffer)
             dup2(newfd, STDIN_FILENO);
             readIndex = 0;
         }
-        if (!strcmp(inputBuffer[0], "jobs"))
+        if (!strcmp(inputBuffer[0], "jobs")) // Compares user input to jobs command
         {
-            printRunning();
+            printRunning(); // Calls on print function in linkedlist
         }
         else
         {
-            execvp(commandBuffer[0], commandBuffer);
+            execvp(commandBuffer[0], commandBuffer); // Cals execvp function, first parameter is the function called
         }
 
         dup2(output, 1);
@@ -304,26 +233,18 @@ int executeProcess(char **inputBuffer, char **commandBuffer)
     }
     else
     {
-        if (bg)
+        if (bg) // Checks if background task
         {
-            insertNode(*inputBuffer, pid);
+            insertNode(*inputBuffer, pid); // Calls on insert node from linkedlist
             return 0;
         }
 
-        // Dette funker ikke for cd, se nærmere på det
-        // legge inn først sjekk etter & og terminere etter den funksjonaliteten dersom det finnes
+        // Waits for specific PID, not all (wait and waitpid(-1)) does this
         waitpid(pid, &status, 0);
 
-        /*/stdout and stdin back to console
-        dup2(output, 1);
-        close(output);
-        close(inputBuffer[writeIndex]);
-        dup2(input, 1);
-        close(input);
-        close(inputBuffer[readIndex]);*/
-        if (WIFEXITED(status))
+        if (WIFEXITED(status)) // Checks if exited
         {
-            int exitStatus = WEXITSTATUS(status);
+            int exitStatus = WEXITSTATUS(status); // Checks exit status
 
             for (int i = 0; i < MAXLIST; i++)
             {
@@ -335,135 +256,77 @@ int executeProcess(char **inputBuffer, char **commandBuffer)
                 strcat(finalStr, " ");
             }
             printf("\n %s", finalStr);
-            printf("\n Exit status [ %s] = %d \n", finalStr, exitStatus);
+            printf("\n Exit status [ %s] = %d \n", finalStr, exitStatus); // Prints exit status
         }
         else if (WIFSIGNALED(status))
             psignal(WTERMSIG(status), "Exit signal");
 
-        // wait(status); // Equivalent to waitPid(-1, &status, 0)
         return 1;
     }
 }
 
-// Function where the piped system commands is executed
-void execArgsPiped(char **parsed, char **parsedpipe)
+// This function executes all piped system commands
+void executePipes(char **commandBuffer, char **pipeBuffer)
 {
     // 0 is read end, 1 is write end
-    int pipefd[3];
-    pid_t p1, p2, p3;
+    int pfd[2];
+    pid_t pid1, pid2;
 
-    if (pipe(pipefd) < 0)
+    if (pipe(pfd) < 0) // Checks if pipe initialization is true
     {
-        printf("\nPipe could not be initialized");
+        printf("\n Initialization of pipe failed");
         return;
     }
-    p1 = fork();
-    if (p1 < 0)
+    pid1 = fork();
+    if (pid1 < 0)
     {
-        printf("\nCould not fork");
+        printf("\nUnable to fork");
         return;
     }
 
-    if (p1 == 0)
+    if (pid1 == 0)
     {
 
-        // Child 1 executing..
-        // It only needs to write at the write end
-        close(pipefd[0]);
-        dup2(pipefd[1], STDOUT_FILENO);
-        close(pipefd[1]);
+        // Child 1 executes
+        close(pfd[0]);
+        dup2(pfd[1], STDOUT_FILENO);
+        close(pfd[1]);
 
-        if (execvp(parsed[0], parsed) < 0)
+        if (execvp(commandBuffer[0], commandBuffer) < 0)
         {
-            printf("\nCould not execute command 1..");
+            printf("\nUnable to execute first command");
             exit(0);
         }
     }
     else
     {
-        // Parent executing
-        p2 = fork();
+        // Parent executes
+        pid2 = fork();
 
-        if (p2 < 0)
+        if (pid2 < 0)
         {
-            printf("\nCould not fork");
+            printf("\nUnable to fork");
             return;
         }
 
-        // Child 2 executing..
-        // It needs to read at the read end and write at the write end
-        if (p2 == 0)
+        if (pid2 == 0)
         {
 
-            close(pipefd[1]);
-            dup2(pipefd[0], STDIN_FILENO);
-            close(pipefd[0]);
-            close(pipefd[1]);
-            dup2(pipefd[2], STDOUT_FILENO);
-            close(pipefd[2]);
-
-            /*  if (readIndex)
-             {
-
-                 int newfd = open(parsedpipe[readIndex], O_RDONLY);
-                 input = dup(0);
-                 dup2(newfd, STDIN_FILENO);
-                 readIndex = 0;
-             } */
-            if (execvp(parsedpipe[0], parsedpipe) < 0)
+            close(pfd[1]);
+            dup2(pfd[0], STDIN_FILENO);
+            close(pfd[0]);
+            if (execvp(pipeBuffer[0], pipeBuffer) < 0)
             {
-                printf("\nCould not execute command 2..");
+                printf("\nUnable to execute first command");
                 exit(0);
             }
         }
+
         else
         {
-            // Parent executing
-            p3 = fork();
-
-            if (p3 < 0)
-            {
-                printf("\nCould not fork");
-                return;
-            }
-
-            // Child 3 executing..
-            // It only needs to read at the read end
-            if (p3 == 0)
-            {
-
-                close(pipefd[2]);
-                dup2(pipefd[1], STDIN_FILENO);
-                close(pipefd[1]);
-
-                /*  if (readIndex)
-                 {
-
-                     int newfd = open(parsedpipe[readIndex], O_RDONLY);
-                     input = dup(0);
-                     dup2(newfd, STDIN_FILENO);
-                     readIndex = 0;
-                 } */
-                printf("parsedpipe[1]: %s\n", parsedpipe[1]);
-                if (execvp(parsedpipe[0], parsedpipe) < 0)
-                {
-                    printf("\nCould not execute command 3..");
-                    exit(0);
-                }
-            }
-
-            /*  else
-             {
-                 // parent executing, waiting for two children
-                 wait(NULL);
-                 wait(NULL);
-             } */
-            else
-            {
-                // parent executing, waiting for two children
-                wait(NULL);
-                wait(NULL);
-            }
+            // parent executes and wait for children
+            wait(NULL);
+            wait(NULL);
         }
     }
 }
@@ -471,18 +334,13 @@ void execArgsPiped(char **parsed, char **parsedpipe)
 int main()
 {
     char inputString[MAXCOM], *inputBuffer[MAXLIST], *commandBuffer[MAXLIST];
-    char *inputPipes[MAXLIST];
+    char *pipeBuffer[MAXLIST];
     int flag = 0;
-    // init_shell();
-    // char *currentline[MAXLIST];
-
-    // char *readfrom = readToBuffer("textfile.txt");
-    // writeToFile(( char ** )readfrom, "writefile.txt");
 
     while (1)
     {
         bg = 0;
-        // printRunning();
+
         //  print shell line
         activeDirectory();
         // take input
@@ -490,25 +348,14 @@ int main()
             continue;
 
         // process
-        flag = parseString(inputString, inputBuffer, inputPipes);
+        flag = parseString(inputString, inputBuffer, pipeBuffer);
         findCommand(inputBuffer, commandBuffer);
-
-        printf("%d \n", flag); // kommer hit
-        if (flag == 1)
+        if (flag == 1) // If flag == 1, no pipes
             executeProcess(inputBuffer, commandBuffer);
         ;
-        if (flag == 2)
-            execArgsPiped(commandBuffer, inputPipes); // noe feiler her
-        removeZombies();
-        //    bg = 0;
-
-        /*/stdout and stdin back to console
-        dup2(output, 1);
-        close(output);
-        close(inputBuffer[writeIndex]);
-        dup2(input, 1);
-        close(input);
-        close(inputBuffer[readIndex]);*/
+        if (flag == 2) // flag == 2 indicates pipes
+            executePipes(commandBuffer, pipeBuffer);
+        removeZombies(); // removes zombies, function from linkedlist
     }
     return 0;
 }

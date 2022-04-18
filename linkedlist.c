@@ -78,39 +78,7 @@ int removeZombies()
         node = node->next;
     }
 }
-/*
-// display the zombies
-void removeZombies()
-{
-    struct Node *node = head;
-    struct Node *previous;
-    // start from the beginning
-    while (node != NULL)
-    {
-        if (!isActive(node))
-        {
 
-            int status = getZombie(node->pid);
-            if (node == head)
-            {
-
-                // change first to point to next link
-                head = head->next;
-            }
-            if (status != -1)
-            {
-                printf("\n Zombie exit status [%s] = %d", node->command, node->exitStatus);
-                previous->next = node->next;
-            }
-        }
-        else
-        {
-            previous = node;
-        }
-        node = node->next;
-    }
-}
- */
 // display the active processes
 void printRunning()
 {
