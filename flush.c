@@ -88,7 +88,7 @@ void parseCmd(char *inputString, char **commandBuffer)
     }
 }
 
-int parseString(char *inputString, char **inputBuffer, char **inputpipe)
+int parseString(char *inputString, char **inputBuffer, char **inputpipe, char **inputPipe2)
 {
     output = dup(1);
     input = dup(0);
@@ -266,18 +266,91 @@ int executeProcess(char **inputBuffer, char **commandBuffer)
 }
 
 // This function executes all piped system commands
-void executePipes(char **commandBuffer, char **pipeBuffer)
+void executePipes(char **commandBuffer, char **pipeBuffer, char **pipeBuffer2)
 {
     // 0 is read end, 1 is write end
-    int pfd[2];
+    int pipes[4];
     pid_t pid1, pid2;
+    int i = 0;
 
-    if (pipe(pfd) < 0) // Checks if pipe initialization is true
+    if (pipe(pipes) < 0) // Checks if pipe initialization is true
     {
         printf("\n Initialization of pipe failed");
         return;
     }
-    pid1 = fork();
+
+    if (fork() == 0)
+    {
+        // replace cat's stdout with write part of 1st pipe
+
+        dup2(pipes[1], 1);
+
+        // close all pipes (very important!); end we're using was safely copied
+
+        close(pipes[0]);
+        close(pipes[1]);
+        close(pipes[2]);
+        close(pipes[3]);
+
+        execvp(commandBuffer[0], commandBuffer);
+    }
+    else
+    {
+        // fork second child (to execute grep)
+
+        if (fork() == 0)
+        {
+            // replace grep's stdin with read end of 1st pipe
+
+            dup2(pipes[0], 0);
+
+            // replace grep's stdout with write end of 2nd pipe
+
+            dup2(pipes[3], 1);
+
+            // close all ends of pipes
+
+            close(pipes[0]);
+            close(pipes[1]);
+            close(pipes[2]);
+            close(pipes[3]);
+
+            execvp(pipeBuffer[0], pipeBuffer);
+        }
+        else
+        {
+            // fork third child (to execute cut)
+
+            if (fork() == 0)
+            {
+                // replace cut's stdin with input read of 2nd pipe
+
+                dup2(pipes[2], 0);
+
+                // close all ends of pipes
+
+                close(pipes[0]);
+                close(pipes[1]);
+                close(pipes[2]);
+                close(pipes[3]);
+
+                execvp(pipeBuffer2[0], pipeBuffer2);
+            }
+        }
+    }
+
+    // only the parent gets here and waits for 3 children to finish
+
+    close(pipes[0]);
+    close(pipes[1]);
+    close(pipes[2]);
+    close(pipes[3]);
+
+    for (i = 0; i < 3; i++)
+        wait(NULL);
+}
+
+/*     pid1 = fork();
     if (pid1 < 0)
     {
         printf("\nUnable to fork");
@@ -361,13 +434,13 @@ void executePipes(char **commandBuffer, char **pipeBuffer)
             wait(NULL);
             wait(NULL);
         }
-    }
-}
+    } */
+//}
 
 int main()
 {
     char inputString[MAXCOM], *inputBuffer[MAXLIST], *commandBuffer[MAXLIST];
-    char *pipeBuffer[MAXLIST];
+    char *pipeBuffer[MAXLIST], *pipeBuffer2[MAXLIST];
     int flag = 0;
 
     while (1)
@@ -381,13 +454,13 @@ int main()
             continue;
 
         // process
-        flag = parseString(inputString, inputBuffer, pipeBuffer);
+        flag = parseString(inputString, inputBuffer, pipeBuffer, pipeBuffer2);
         findCommand(inputBuffer, commandBuffer);
         if (flag == 1) // If flag == 1, no pipes
             executeProcess(inputBuffer, commandBuffer);
         ;
         if (flag == 2) // flag == 2 indicates pipes
-            executePipes(inputBuffer, pipeBuffer);
+            executePipes(inputBuffer, pipeBuffer, pipeBuffer2);
         removeZombies(); // removes zombies, function from linkedlist
     }
     return 0;
