@@ -123,9 +123,11 @@ int parsePipe(char *str, char **strpiped)
 
     if (strpiped[1] == NULL)
         return 0; // returns zero if no pipe is found.
+    else if (strpiped[1] != NULL && strpiped[2] == NULL)
+        return 1; // returns zero if no pipe is found.
     else
     {
-        return 1;
+        return 2;
     }
 }
 // function for parsing command words
@@ -160,6 +162,9 @@ int parseString(char *inputString, char **inputBuffer, char **inputpipe)
     {
         parseSpace(strpiped[0], inputBuffer);
         parseSpace(strpiped[1], inputpipe);
+        if (piped == 2) {
+            parseSpace(strpiped[2], inputpipe);
+        }
         return 2;
     }
 
@@ -386,7 +391,7 @@ void execArgsPiped(char **parsed, char **parsedpipe)
         }
 
         // Child 2 executing..
-        // It only needs to read at the read end
+        // It needs to read at the read end and write at the write end
         if (p2 == 0)
         {
 
@@ -422,7 +427,7 @@ void execArgsPiped(char **parsed, char **parsedpipe)
                 return;
             }
 
-            // Child 2 executing..
+            // Child 3 executing..
             // It only needs to read at the read end
             if (p3 == 0)
             {
@@ -439,9 +444,10 @@ void execArgsPiped(char **parsed, char **parsedpipe)
                      dup2(newfd, STDIN_FILENO);
                      readIndex = 0;
                  } */
-                if (execvp(parsedpipe[1], parsedpipe) < 0)
+                printf("parsedpipe[1]: %s\n", parsedpipe[1]);
+                if (execvp(parsedpipe[0], parsedpipe) < 0)
                 {
-                    printf("\nCould not execute command 2..");
+                    printf("\nCould not execute command 3..");
                     exit(0);
                 }
             }
