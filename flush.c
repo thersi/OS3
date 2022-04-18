@@ -199,13 +199,13 @@ int executeProcess(char **inputBuffer, char **commandBuffer)
     else if (pid == 0) // child pid
     {
 
-        /*  if (writeIndex) // For writitng to file
-         {
-             int newfd = open(inputBuffer[writeIndex], O_WRONLY | O_CREAT, S_IRUSR | S_IWUSR);
-             output = dup(1);
-             dup2(newfd, STDOUT_FILENO);
-             writeIndex = 0;
-         } */
+        if (writeIndex) // For writitng to file
+        {
+            int newfd = open(inputBuffer[writeIndex], O_WRONLY | O_CREAT, S_IRUSR | S_IWUSR);
+            output = dup(1);
+            dup2(newfd, STDOUT_FILENO);
+            writeIndex = 0;
+        }
         if (readIndex) // For reading to file
         {
 
@@ -288,9 +288,25 @@ void executePipes(char **commandBuffer, char **pipeBuffer)
     {
 
         // Child 1 executes
+        close(pfd[0]);
+        dup2(pfd[1], STDOUT_FILENO);
         close(pfd[1]);
-        dup2(pfd[2], STDOUT_FILENO);
-        close(pfd[2]);
+
+        if (writeIndex) // For writitng to file
+        {
+            int newfd = open(commandBuffer[writeIndex], O_WRONLY | O_CREAT, S_IRUSR | S_IWUSR);
+            output = dup(1);
+            dup2(newfd, STDOUT_FILENO);
+            writeIndex = 0;
+        }
+        if (readIndex) // For reading to file
+        {
+
+            int newfd = open(commandBuffer[readIndex], O_RDONLY);
+            input = dup(0);
+            dup2(newfd, STDIN_FILENO);
+            readIndex = 0;
+        }
 
         if (execvp(commandBuffer[0], commandBuffer) < 0)
         {
@@ -311,10 +327,25 @@ void executePipes(char **commandBuffer, char **pipeBuffer)
 
         if (pid2 == 0)
         {
-
             close(pfd[1]);
             dup2(pfd[0], STDIN_FILENO);
             close(pfd[0]);
+            if (writeIndex) // For writitng to file
+            {
+                int newfd = open(commandBuffer[writeIndex], O_WRONLY | O_CREAT, S_IRUSR | S_IWUSR);
+                output = dup(1);
+                dup2(newfd, STDOUT_FILENO);
+                writeIndex = 0;
+            }
+            if (readIndex) // For reading to file
+            {
+
+                int newfd = open(commandBuffer[readIndex], O_RDONLY);
+                input = dup(0);
+                dup2(newfd, STDIN_FILENO);
+                readIndex = 0;
+            }
+
             if (execvp(pipeBuffer[0], pipeBuffer) < 0)
             {
                 printf("\nUnable to execute first command");
@@ -354,7 +385,7 @@ int main()
             executeProcess(inputBuffer, commandBuffer);
         ;
         if (flag == 2) // flag == 2 indicates pipes
-            executePipes(commandBuffer, pipeBuffer);
+            executePipes(inputBuffer, pipeBuffer);
         removeZombies(); // removes zombies, function from linkedlist
     }
     return 0;
