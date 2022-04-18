@@ -286,6 +286,7 @@ void executePipes(char **commandBuffer, char **pipeBuffer)
 
     if (pid1 == 0)
     {
+        char *buf[3];
 
         // Child 1 executes
         close(pfd[0]);
@@ -327,6 +328,7 @@ void executePipes(char **commandBuffer, char **pipeBuffer)
 
         if (pid2 == 0)
         {
+
             close(pfd[1]);
             dup2(pfd[0], STDIN_FILENO);
             close(pfd[0]);
