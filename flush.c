@@ -7,6 +7,7 @@
 #include <sys/wait.h>
 #include <readline/readline.h>
 #include <assert.h>
+#include <signal.h>
 #include "linkedlist.h"
 #define MAX_SIZE 300
 
@@ -95,7 +96,7 @@ int parseString(char *inputString, char **inputBuffer, char **inputpipe)
 
     int i;
 
-    char *pipedString[2];
+    char *pipedString[3];
     int pipe = 0;
 
     pipe = pipeParser(inputString, pipedString); // Calls pipeParser function to find if there are any pipes
@@ -271,70 +272,98 @@ int executeProcess(char **inputBuffer, char **commandBuffer)
 // This function executes all piped system commands
 void executePipes(char **commandBuffer, char **pipeBuffer)
 {
-    // 0 is read end, 1 is write end
-    int pfd[2];
-    pid_t pid1, pid2;
+    int i;
+    pid_t pid;
+    int in, out, fd[3];
 
-    if (pipe(pfd) < 0) // Checks if pipe initialization is true
+    /* The first process should get its input from the original file descriptor 0.  */
+    in = 0;
+    out = fd[2];
+
+    /* Note the loop bound, we spawn here all, but the last stage of the pipeline.  */
+    for (i = 0; i < 4 - 1; ++i)
     {
-        printf("\n Initialization of pipe failed");
-        return;
-    }
-    pid1 = fork();
-    if (pid1 < 0)
-    {
-        printf("\nUnable to fork");
-        return;
-    }
+        pipe(fd);
 
-    if (pid1 == 0)
-    {
-        char *buf[3];
+        /* f [1] is the write end of the pipe, we carry `in` from the prev iteration.  */
+        pid_t pid;
 
-        // Child 1 executes
-        close(pfd[0]);
-        dup2(pfd[1], STDOUT_FILENO);
-        close(pfd[1]);
-
+        /*
         if (writeIndex) // For writitng to file
-        {
-            int newfd = open(commandBuffer[writeIndex], O_WRONLY | O_CREAT, S_IRUSR | S_IWUSR);
-            output = dup(1);
-            dup2(newfd, STDOUT_FILENO);
-            writeIndex = 0;
-        }
-        if (readIndex) // For reading to file
-        {
-
-            int newfd = open(commandBuffer[readIndex], O_RDONLY);
-            input = dup(0);
-            dup2(newfd, STDIN_FILENO);
-            readIndex = 0;
-        }
-
-        if (execvp(commandBuffer[0], commandBuffer) < 0)
-        {
-            printf("\nUnable to execute first command");
-            exit(0);
-        }
-    }
-    else
     {
-        // Parent executes
-        pid2 = fork();
+        int newfd = open(commandBuffer[writeIndex], O_WRONLY | O_CREAT, S_IRUSR | S_IWUSR);
+        output = dup(1);
+        dup2(newfd, STDOUT_FILENO);
+        writeIndex = 0;
+    }
+    if (readIndex) // For reading to file
+    {
 
-        if (pid2 < 0)
+        int newfd = open(commandBuffer[readIndex], O_RDONLY);
+        input = dup(0);
+        dup2(newfd, STDIN_FILENO);
+        readIndex = 0;
+    }
+        */
+
+        if ((pid = fork()) == 0)
+        {
+            if (in != 0)
+            {
+                dup2(in, 0);
+                close(in);
+            }
+
+            if (out != 1)
+            {
+                dup2(out, 1);
+                close(out);
+            }
+
+            execvp(commandBuffer[0], commandBuffer);
+        }
+
+        /* No need for the write end of the pipe, the child will write here.  */
+        close(fd[1]);
+
+        /* Keep the read end of the pipe, the next child will read from there.  */
+        in = fd[0];
+    }
+
+    /* Last stage of the pipeline - set stdin be the read end of the previous pipe
+       and output to the original file descriptor 1. */
+    if (in != 0)
+        dup2(in, 0);
+
+    /* Execute the last stage with the current process. */
+    execvp(commandBuffer[0], commandBuffer);
+
+    /*
+        // 0 is read end, 1 is write end
+        int pfd[2];
+        pid_t pid1, pid2;
+
+        if (pipe(pfd) < 0) // Checks if pipe initialization is true
+        {
+            printf("\n Initialization of pipe failed");
+            return;
+        }
+        pid1 = fork();
+        if (pid1 < 0)
         {
             printf("\nUnable to fork");
             return;
         }
 
-        if (pid2 == 0)
+        if (pid1 == 0)
         {
+            char *buf[3];
 
-            close(pfd[1]);
-            dup2(pfd[0], STDIN_FILENO);
+            // Child 1 executes
             close(pfd[0]);
+            dup2(pfd[1], STDOUT_FILENO);
+            close(pfd[1]);
+
             if (writeIndex) // For writitng to file
             {
                 int newfd = open(commandBuffer[writeIndex], O_WRONLY | O_CREAT, S_IRUSR | S_IWUSR);
@@ -351,20 +380,59 @@ void executePipes(char **commandBuffer, char **pipeBuffer)
                 readIndex = 0;
             }
 
-            if (execvp(pipeBuffer[0], pipeBuffer) < 0)
+            if (execvp(commandBuffer[0], commandBuffer) < 0)
             {
                 printf("\nUnable to execute first command");
                 exit(0);
             }
         }
-
         else
         {
-            // parent executes and wait for children
-            wait(NULL);
-            wait(NULL);
-        }
-    }
+            // Parent executes
+            pid2 = fork();
+
+            if (pid2 < 0)
+            {
+                printf("\nUnable to fork");
+                return;
+            }
+
+            if (pid2 == 0)
+            {
+
+                close(pfd[1]);
+                dup2(pfd[0], STDIN_FILENO);
+                close(pfd[0]);
+                if (writeIndex) // For writitng to file
+                {
+                    int newfd = open(commandBuffer[writeIndex], O_WRONLY | O_CREAT, S_IRUSR | S_IWUSR);
+                    output = dup(1);
+                    dup2(newfd, STDOUT_FILENO);
+                    writeIndex = 0;
+                }
+                if (readIndex) // For reading to file
+                {
+
+                    int newfd = open(commandBuffer[readIndex], O_RDONLY);
+                    input = dup(0);
+                    dup2(newfd, STDIN_FILENO);
+                    readIndex = 0;
+                }
+
+                if (execvp(pipeBuffer[0], pipeBuffer) < 0)
+                {
+                    printf("\nUnable to execute first command");
+                    exit(0);
+                }
+            }
+
+            else
+            {
+                // parent executes and wait for children
+                wait(NULL);
+                wait(NULL);
+            }
+        }*/
 }
 
 int main()
