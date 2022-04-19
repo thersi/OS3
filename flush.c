@@ -109,6 +109,7 @@ int parseString(char *inputString, char **inputBuffer, char **inputpipe, char **
         if (pipe == 2) // In case of 2 pipes:
         {
             parseCmd(pipedString[2], inputPipe2);
+            return 3;
         }
         return 2;
     }
@@ -267,98 +268,18 @@ int executeProcess(char **inputBuffer, char **commandBuffer)
         return 1;
     }
 }
-
-// This function executes all piped system commands
-void executePipes(char **commandBuffer, char **pipeBuffer, char **pipeBuffer2)
+void executePipe(char **commandBuffer, char **pipeBuffer)
 {
     // 0 is read end, 1 is write end
-    int pipes[4];
+    int pfd[2];
     pid_t pid1, pid2;
-    int i = 0;
 
-    if (pipe(pipes) < 0) // Checks if pipe initialization is true
+    if (pipe(pfd) < 0) // Checks if pipe initialization is true
     {
         printf("\n Initialization of pipe failed");
         return;
     }
-    if (pipe(pipes + 2) < 0)
-    {
-        printf("\n Initialization of pipe2 failed");
-        return;
-    }
-
-    if (fork() == 0)
-    {
-        // replace cat's stdout with write part of 1st pipe
-
-        dup2(pipes[1], 1);
-
-        // close all pipes (very important!); end we're using was safely copied
-
-        close(pipes[0]);
-        close(pipes[1]);
-        close(pipes[2]);
-        close(pipes[3]);
-
-        execvp(*commandBuffer, commandBuffer);
-    }
-    else
-    {
-        // fork second child (to execute grep)
-
-        if (fork() == 0)
-        {
-            // replace grep's stdin with read end of 1st pipe
-
-            dup2(pipes[0], 0);
-
-            // replace grep's stdout with write end of 2nd pipe
-
-            dup2(pipes[3], 1);
-
-            // close all ends of pipes
-
-            close(pipes[0]);
-            close(pipes[1]);
-            close(pipes[2]);
-            close(pipes[3]);
-
-            execvp(*pipeBuffer, pipeBuffer);
-        }
-        else
-        {
-            // fork third child (to execute cut)
-
-            if (fork() == 0)
-            {
-                // replace cut's stdin with input read of 2nd pipe
-
-                dup2(pipes[2], 0);
-
-                // close all ends of pipes
-
-                close(pipes[0]);
-                close(pipes[1]);
-                close(pipes[2]);
-                close(pipes[3]);
-
-                execvp(*pipeBuffer2, pipeBuffer2);
-            }
-        }
-    }
-
-    // only the parent gets here and waits for 3 children to finish
-
-    close(pipes[0]);
-    close(pipes[1]);
-    close(pipes[2]);
-    close(pipes[3]);
-
-    for (i = 0; i < 3; i++)
-        wait(NULL);
-}
-
-/*     pid1 = fork();
+    pid1 = fork();
     if (pid1 < 0)
     {
         printf("\nUnable to fork");
@@ -367,30 +288,13 @@ void executePipes(char **commandBuffer, char **pipeBuffer, char **pipeBuffer2)
 
     if (pid1 == 0)
     {
-        char *buf[3];
 
         // Child 1 executes
         close(pfd[0]);
         dup2(pfd[1], STDOUT_FILENO);
         close(pfd[1]);
 
-        if (writeIndex) // For writitng to file
-        {
-            int newfd = open(commandBuffer[writeIndex], O_WRONLY | O_CREAT, S_IRUSR | S_IWUSR);
-            output = dup(1);
-            dup2(newfd, STDOUT_FILENO);
-            writeIndex = 0;
-        }
-        if (readIndex) // For reading to file
-        {
-
-            int newfd = open(commandBuffer[readIndex], O_RDONLY);
-            input = dup(0);
-            dup2(newfd, STDIN_FILENO);
-            readIndex = 0;
-        }
-
-        if (execvp(commandBuffer[0], commandBuffer) < 0)
+        if (execvp(*commandBuffer, commandBuffer) < 0)
         {
             printf("\nUnable to execute first command");
             exit(0);
@@ -409,27 +313,11 @@ void executePipes(char **commandBuffer, char **pipeBuffer, char **pipeBuffer2)
 
         if (pid2 == 0)
         {
-
             close(pfd[1]);
             dup2(pfd[0], STDIN_FILENO);
             close(pfd[0]);
-            if (writeIndex) // For writitng to file
-            {
-                int newfd = open(commandBuffer[writeIndex], O_WRONLY | O_CREAT, S_IRUSR | S_IWUSR);
-                output = dup(1);
-                dup2(newfd, STDOUT_FILENO);
-                writeIndex = 0;
-            }
-            if (readIndex) // For reading to file
-            {
 
-                int newfd = open(commandBuffer[readIndex], O_RDONLY);
-                input = dup(0);
-                dup2(newfd, STDIN_FILENO);
-                readIndex = 0;
-            }
-
-            if (execvp(pipeBuffer[0], pipeBuffer) < 0)
+            if (execvp(*pipeBuffer, pipeBuffer) < 0)
             {
                 printf("\nUnable to execute first command");
                 exit(0);
@@ -442,8 +330,88 @@ void executePipes(char **commandBuffer, char **pipeBuffer, char **pipeBuffer2)
             wait(NULL);
             wait(NULL);
         }
-    } */
-//}
+    }
+}
+// This function executes all 2 pipes
+void executePipes(char **commandBuffer, char **pipeBuffer, char **pipeBuffer2)
+{
+    int pipes[4];
+    int i = 0;
+
+    if (pipe(pipes) < 0) // Checks if pipe initialization works
+    {
+        printf("\n Initialization of pipe failed");
+        return;
+    }
+    if (pipe(pipes + 2) < 0)
+    {
+        printf("\n Initialization of pipe2 failed");
+        return;
+    }
+
+    if (fork() == 0)
+    {
+
+        dup2(pipes[1], 1);
+
+        // close pipes
+
+        close(pipes[0]);
+        close(pipes[1]);
+        close(pipes[2]);
+        close(pipes[3]);
+
+        execvp(*commandBuffer, commandBuffer);
+    }
+    else
+    {
+        // fork second child
+
+        if (fork() == 0)
+        {
+
+            dup2(pipes[0], 0);
+
+            dup2(pipes[3], 1);
+
+            // close all pipe ends
+
+            close(pipes[0]);
+            close(pipes[1]);
+            close(pipes[2]);
+            close(pipes[3]);
+
+            execvp(*pipeBuffer, pipeBuffer);
+        }
+        else
+        {
+            // fork third child
+
+            if (fork() == 0)
+            {
+
+                dup2(pipes[2], 0);
+
+                close(pipes[0]);
+                close(pipes[1]);
+                close(pipes[2]);
+                close(pipes[3]);
+
+                execvp(*pipeBuffer2, pipeBuffer2);
+            }
+        }
+    }
+
+    // only the parent is here and waits for children complete
+
+    close(pipes[0]);
+    close(pipes[1]);
+    close(pipes[2]);
+    close(pipes[3]);
+
+    for (i = 0; i < 3; i++)
+        wait(NULL);
+}
 
 int main()
 {
@@ -466,8 +434,10 @@ int main()
         findCommand(inputBuffer, commandBuffer);
         if (flag == 1) // If flag == 1, no pipes
             executeProcess(inputBuffer, commandBuffer);
-        ;
-        if (flag == 2) // flag == 2 indicates pipes
+
+        // if (flag == 2) // flag == 2 indicates 1 pipes, This function works but does not return back to active directory. Didnt have time to fix :( )
+        // executePipe(inputBuffer, pipeBuffer);
+        if (flag == 3) // flag == 3 indicates 2 pipes
             executePipes(inputBuffer, pipeBuffer, pipeBuffer2);
         removeZombies(); // removes zombies, function from linkedlist
     }
