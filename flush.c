@@ -95,10 +95,12 @@ int parseString(char *inputString, char **inputBuffer, char **inputpipe, char **
 
     int i;
 
-    char *pipedString[2];
+    char *pipedString[3];
+    char *pipedString2[3];
     int pipe = 0;
 
     pipe = pipeParser(inputString, pipedString); // Calls pipeParser function to find if there are any pipes
+    // int pipe2 = pipeParser(inputString, pipedString2); // Calls pipeParser function to find if there are any pipes
 
     if (pipe)
     {
@@ -106,7 +108,7 @@ int parseString(char *inputString, char **inputBuffer, char **inputpipe, char **
         parseCmd(pipedString[1], inputpipe);
         if (pipe == 2) // In case of 2 pipes:
         {
-            parseCmd(pipedString[2], inputpipe);
+            parseCmd(pipedString[2], inputPipe2);
         }
         return 2;
     }
@@ -198,14 +200,6 @@ int executeProcess(char **inputBuffer, char **commandBuffer)
     }
     else if (pid == 0) // child pid
     {
-
-        if (writeIndex) // For writitng to file
-        {
-            int newfd = open(inputBuffer[writeIndex], O_WRONLY | O_CREAT, S_IRUSR | S_IWUSR);
-            output = dup(1);
-            dup2(newfd, STDOUT_FILENO);
-            writeIndex = 0;
-        }
         if (readIndex) // For reading to file
         {
 
@@ -214,6 +208,15 @@ int executeProcess(char **inputBuffer, char **commandBuffer)
             dup2(newfd, STDIN_FILENO);
             readIndex = 0;
         }
+
+        if (writeIndex) // For writitng to file
+        {
+            int newfd = open(inputBuffer[writeIndex], O_WRONLY | O_CREAT, S_IRUSR | S_IWUSR);
+            output = dup(1);
+            dup2(newfd, STDOUT_FILENO);
+            writeIndex = 0;
+        }
+
         if (!strcmp(inputBuffer[0], "jobs")) // Compares user input to jobs command
         {
             printRunning(); // Calls on print function in linkedlist
@@ -278,6 +281,11 @@ void executePipes(char **commandBuffer, char **pipeBuffer, char **pipeBuffer2)
         printf("\n Initialization of pipe failed");
         return;
     }
+    if (pipe(pipes + 2) < 0)
+    {
+        printf("\n Initialization of pipe2 failed");
+        return;
+    }
 
     if (fork() == 0)
     {
@@ -292,7 +300,7 @@ void executePipes(char **commandBuffer, char **pipeBuffer, char **pipeBuffer2)
         close(pipes[2]);
         close(pipes[3]);
 
-        execvp(commandBuffer[0], commandBuffer);
+        execvp(*commandBuffer, commandBuffer);
     }
     else
     {
@@ -315,7 +323,7 @@ void executePipes(char **commandBuffer, char **pipeBuffer, char **pipeBuffer2)
             close(pipes[2]);
             close(pipes[3]);
 
-            execvp(pipeBuffer[0], pipeBuffer);
+            execvp(*pipeBuffer, pipeBuffer);
         }
         else
         {
@@ -334,7 +342,7 @@ void executePipes(char **commandBuffer, char **pipeBuffer, char **pipeBuffer2)
                 close(pipes[2]);
                 close(pipes[3]);
 
-                execvp(pipeBuffer2[0], pipeBuffer2);
+                execvp(*pipeBuffer2, pipeBuffer2);
             }
         }
     }
